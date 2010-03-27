@@ -10,6 +10,160 @@ require 'lll'
 
 require 'progressbar'
 
+
+class Nropster
+  attr_reader :shows
+  
+  def initialize(show_shows)
+    @shows = TiVo.new.shows(show_shows).select {|show| should_download? show}
+  end
+
+  def run
+    for show in @shows
+      job = DownloadJob.new(show, '/Users/mwilden/Nrop/nropster')
+      job.perform
+      if job.success?
+        job = EncodeJob.new(show, '/Users/mwilden/Nrop/nropster')
+        job.perform
+        if job.success?
+          puts 'Success'
+        end
+      end
+    end
+  end
+
+  private
+  def should_download? show
+    show.full_title =~ /Fellas|Lethal/
+  end
+
+end
+
+class EncodeJob
+  def initialize show, output_dir
+    @show = show
+    @input_filename = "#{output_dir}/#{show.downloaded_filename}"
+    @output_filename = "#{output_dir}/#{show.encoded_filename}"
+  end
+
+  def perform
+    puts "Encoding"
+    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{@input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{@output_filename}'`
+    File.delete @input_filename
+  end
+
+  def success?
+    File.exist? @output_filename
+  end
+end
+
+class DownloadJob
+  def initialize show, output_dir
+    @show = show
+    @output_filename = "#{output_dir}/#{show.downloaded_filename}"
+  end
+
+  def perform
+    progress_bar = nil
+    puts "Downloading #{@show.full_title} (#{Console::ProgressBar.convert_bytes(@show.size)})"
+    IO.popen("tivodecode -o '#{@output_filename}' -", 'wb') do |tivodecode|
+      progress_bar = Console::ProgressBar.new(@show.full_title, @show.size)
+      @show.download do |chunk|
+        tivodecode << chunk
+        progress_bar.inc(chunk.length)
+      end
+      progress_bar.finish
+    end
+  rescue Exception => err
+    progress_bar.finish
+    puts err
+    File.delete @output_filename
+  end
+
+  def success?
+    File.exist? @output_filename
+  end
+
+end
+
+class TiVo
+  def initialize
+    @shows_cache_filename = File.expand_path(File.join(File.dirname(__FILE__), 'shows.xml'))
+  end
+
+  def shows(reload = false)
+    download_shows if reload
+    load_shows
+  end
+
+  def download_show show, &block
+    Downloader.new(show.url).download &block
+  end
+
+  private
+  def download_shows
+    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
+    downloader.download_to_file(@shows_cache_filename)
+  end
+
+  def load_shows
+    shows = []
+    document = Nokogiri::XML(File.read(@shows_cache_filename))
+    document.css('Item').each do |item|
+      item_details = item.css('Details')
+      if item_details.css('ContentType').text =~ /raw-tts/
+        shows << Show.new(self, item)
+      end
+    end
+    shows
+  end
+
+end
+
+class Show
+  attr_reader :size, :url, :title, :episode_title, :time_captured
+
+  def initialize tivo, item
+    @tivo = tivo
+    @keep = item.css('Links CustomIcon Url').text =~ /save-until-i-delete-recording/
+    @title = item.css('Details Title').text
+    @size = item.css('Details SourceSize').text.to_i
+    @episode_title = item.css('Details EpisodeTitle').text
+    @url = item.css('Links Content Url').text
+    @time_captured = Time.at(item.css('Details CaptureDate').text.to_i(16) + 2)
+  end
+
+  def keep?
+    @keep
+  end
+
+  def full_title
+    return @title if @episode_title.empty?
+    @title + ': ' + @episode_title
+  end
+
+  def time_captured_s
+    @time_captured.strftime('%m-%d-%H%M')
+  end
+
+  def download &block
+    @tivo.download_show self, &block
+  end
+
+  def downloaded_filename
+    filename_root + '.mpg'
+  end
+
+  def encoded_filename
+    filename_root + '.dv'
+  end
+
+  private
+  def filename_root
+    full_title + ' ' + time_captured_s
+  end
+end
+
 class Downloader
   def initialize(url)
     @url = url
@@ -43,95 +197,13 @@ class Downloader
 
 end
 
-class TiVo
-  def initialize
-    @shows_cache_filename = File.expand_path(File.join(File.dirname(__FILE__), 'shows.xml'))
-  end
+show_shows = ARGV[0] == 'shows'
 
-  def shows(reload = false)
-    download_shows if reload
-    load_shows
-  end
+nropster = Nropster.new(show_shows)
 
-  def download url, &block
-    Downloader.new(url).download &block
-  end
-
-  private
-  def download_shows
-    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
-    downloader.download_to_file(@shows_cache_filename)
-  end
-
-  def load_shows
-    shows = []
-    document = Nokogiri::XML(File.read(@shows_cache_filename))
-    document.css('Item').each do |item|
-      item_details = item.css('Details')
-      if item_details.css('ContentType').text =~ /raw-tts/
-        shows << Show.new(self, item)
-      end
-    end
-    shows
-  end
-
+if show_shows
+  lll{'nropster.shows'};
+  exit
 end
 
-class Show
-  attr_reader :size, :url, :title, :episode_title
-
-  def initialize tivo, item
-    @tivo = tivo
-    @keep = item.css('Links CustomIcon Url').text =~ /save-until-i-delete-recording/
-    @title = item.css('Details Title').text
-    @size = item.css('Details SourceSize').text.to_i
-    @episode_title = item.css('Details EpisodeTitle').text
-    @url = item.css('Links Content Url').text
-  end
-
-  def keep?
-    @keep
-  end
-
-  def full_title
-    return @title if @episode_title.empty?
-    @title + ': ' + @episode_title
-  end
-
-  def download &block
-    @tivo.download url, &block
-  end
-end
-
-class Nropster
-  def initialize
-    @shows = TiVo.new.shows true
-  end
-
-  def run
-    for show in @shows
-      if should_download? show
-        puts "Downloading #{show.url} #{show.full_title} (#{show.size}) (#{Console::ProgressBar.convert_bytes(show.size)})"
-        IO.popen("tivodecode -o /Users/mwilden/Nrop/nropster/foo.mpg -", 'wb') do |td|
-          pbar = Console::ProgressBar.new('foo', show.size)
-          show.download do |dl|
-            td << dl
-            pbar.inc(dl.length)
-          end
-          pbar.finish
-        end
-        puts "Encoding"
-        `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i /Users/mwilden/Nrop/nropster/foo.mpg -threads 2 -croptop 4 -target ntsc-dv foo.dv`
-      end
-    end
-  end
-
-  private
-  def should_download? show
-    show.full_title =~ /Fellas/
-  end
-
-end
-
-Nropster.new.run
-
+nropster.run
