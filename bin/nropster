@@ -10,41 +10,57 @@ require 'lll'
 
 require 'progressbar'
 
+class Downloader
+  def initialize(url)
+    @url = url
+    @client = HTTPClient.new
+    @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    @client.set_auth(@url, 'tivo', 8185711423)
+  end
+
+  def download
+    # We ignore the first chunk to work around a bug in
+    # http client where we see the "Auth required" digest-auth
+    # header.
+    first_chunk = true
+    get_content do |chunk|
+      if first_chunk
+        first_chunk = false
+        next
+      end
+      yield chunk
+    end
+  end
+
+  def download_to_file filename
+    File.open(filename, 'w') {|f| f.write get_content}
+  end
+
+  private
+  def get_content &block
+    @client.get_content(@url, &block)
+  end
+
+end
+
 class TiVo
   def initialize
     @shows_cache_filename = File.expand_path(File.join(File.dirname(__FILE__), 'shows.xml'))
   end
 
-  def shows reload = false
+  def shows(reload = false)
     download_shows if reload
     load_shows
   end
 
-  def download url
-    client = HTTPClient.new
-    client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    client.set_auth(url, 'tivo', 8185711423)
-    # We ignore the first chunk to work around a bug in
-    # http client where we see the "Auth required" digest-auth
-    # header.
-    first_chunk = true
-    client.get_content(url) do |c|
-      if first_chunk
-        first_chunk = false
-        next
-      end
-      yield c
-    end
+  def download url, &block
+    Downloader.new(url).download &block
   end
 
   private
   def download_shows
-    client = HTTPClient.new
-    client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    client.set_auth('https://10.0.1.7/TiVoConnect', 'tivo', 8185711423)
-    File.open(@shows_cache_filename, 'w') do |file|
-      file.write client.get_content('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
-    end
+    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
+    downloader.download_to_file(@shows_cache_filename)
   end
 
   def load_shows
@@ -62,14 +78,14 @@ class TiVo
 end
 
 class Show
-  attr_reader :size, :url, :title
+  attr_reader :size, :url, :title, :episode_title
 
   def initialize tivo, item
     @tivo = tivo
     @keep = item.css('Links CustomIcon Url').text =~ /save-until-i-delete-recording/
     @title = item.css('Details Title').text
     @size = item.css('Details SourceSize').text.to_i
-    @episode = item.css('Details EpisodeTitle').text
+    @episode_title = item.css('Details EpisodeTitle').text
     @url = item.css('Links Content Url').text
   end
 
@@ -78,8 +94,8 @@ class Show
   end
 
   def full_title
-    return @title if @episode.empty?
-    @title + ': ' + @episode
+    return @title if @episode_title.empty?
+    @title + ': ' + @episode_title
   end
 
   def download &block
@@ -88,12 +104,14 @@ class Show
 end
 
 class Nropster
+  def initialize
+    @shows = TiVo.new.shows true
+  end
+
   def run
-    tivo = TiVo.new
-    shows = tivo.shows
-    lll{'shows'};
-    for show in shows
+    for show in @shows
       if should_download? show
+        puts "Downloading #{show.url} #{show.full_title} (#{show.size}) (#{Console::ProgressBar.convert_bytes(show.size)})"
         IO.popen("tivodecode -o /Users/mwilden/Nrop/nropster/foo.mpg -", 'wb') do |td|
           pbar = Console::ProgressBar.new('foo', show.size)
           show.download do |dl|
@@ -102,15 +120,18 @@ class Nropster
           end
           pbar.finish
         end
+        puts "Encoding"
+        `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i /Users/mwilden/Nrop/nropster/foo.mpg -threads 2 -croptop 4 -target ntsc-dv foo.dv`
       end
     end
   end
 
   private
   def should_download? show
-    show.title =~ /Pump Fiction/
+    show.full_title =~ /Fellas/
   end
 
 end
 
 Nropster.new.run
+

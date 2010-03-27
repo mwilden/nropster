@@ -46,12 +46,11 @@ class Console::ProgressBar
     @is_finished = false
     @start_time = Time.now
     @format = "%-14s %3d%% %s %s"
-    @format_arguments = [:title, :percentage, :bar, :stat]
+    @format_arguments = [:title, :percentage, :bar, :stat_for_file_transfer]
     show_progress
   end
 
-  private
-  def convert_bytes (bytes)
+  def self.convert_bytes (bytes)
     if bytes < 1024
       sprintf("%6dB", bytes)
     elsif bytes < 1024 * 1000 # 1000kb
@@ -65,11 +64,11 @@ class Console::ProgressBar
 
   def transfer_rate
     bytes_per_second = @current.to_f / (Time.now - @start_time)
-    sprintf("%s/s", convert_bytes(bytes_per_second))
+    sprintf("%s/s", self.class.convert_bytes(bytes_per_second))
   end
 
   def bytes
-    convert_bytes(@current)
+    self.class.convert_bytes(@current)
   end
 
   def format_time(t)

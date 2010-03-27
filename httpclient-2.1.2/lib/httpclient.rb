@@ -160,7 +160,6 @@ class SSLConfig # :nodoc:
     @options = defined?(OpenSSL::SSL::OP_ALL) ?
       OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_SSLv2 : nil
     @ciphers = "ALL:!ADH:!LOW:!EXP:!MD5:+SSLv2:@STRENGTH"
-    load_cacerts
   end
 
   def set_client_cert_file(cert_file, key_file)
