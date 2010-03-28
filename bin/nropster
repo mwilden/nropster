@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+VERSION_S = 'nropster 1.0: Download shows from TiVo and encode to DV'
+
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__), '..'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__), '..', 'httpclient-2.1.2', 'lib'))
 
@@ -29,10 +31,12 @@ def log string_or_option, string = nil
 end
 
 class Nropster
-  attr_reader :shows
-
   def initialize(download_now_playing)
     @shows = TiVo.new.shows(download_now_playing).select {|show| show.keep? }
+  end
+
+  def show_shows
+    @shows.each {|show| puts show.to_s }
   end
 
   def run
@@ -88,7 +92,7 @@ class DownloadWorker
     job.output_filename = "#{@output_dir}/#{job.show.downloaded_filename}"
     log job.output_filename
     progress_bar = nil
-    log true, "Downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size).strip})"
+    log true, "Downloading #{job.show.full_title} (#{job.show.size_s})"
     IO.popen("tivodecode -o '#{job.output_filename}' -", 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
@@ -179,7 +183,7 @@ class TiVo
 end
 
 class Show
-  attr_reader :size, :url, :title, :episode_title, :time_captured
+  attr_reader :size, :url, :title, :episode_title, :time_captured, :duration
 
   def initialize tivo, item
     @tivo = tivo
@@ -189,6 +193,7 @@ class Show
     @episode_title = item.css('Details EpisodeTitle').text
     @url = item.css('Links Content Url').text
     @time_captured = Time.at(item.css('Details CaptureDate').text.to_i(16) + 2)
+    @duration = item.css('Details Duration').text.to_i / 1000
   end
 
   def keep?
@@ -197,11 +202,18 @@ class Show
 
   def full_title
     return @title if @episode_title.empty?
-    @title + ': ' + @episode_title
+    @title + ' - ' + @episode_title
   end
 
   def time_captured_s
-    @time_captured.strftime('%m-%d-%H%M')
+    @time_captured.strftime('%m-%d %H:%M')
+  end
+
+  def duration_s
+    minutes = (@duration / 60) % 60
+    minutes += 1 if @duration % 60 != 0
+    hours = @duration / 3600
+    sprintf("%d:%02d", hours, minutes)
   end
 
   def download &block
@@ -217,7 +229,11 @@ class Show
   end
 
   def to_s
-    time_captured_s + ' ' + full_title + ' ' + Console::ProgressBar.convert_bytes(size).strip
+    "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})"
+  end
+
+  def size_s
+    Console::ProgressBar.convert_bytes(size).strip
   end
 
   private
@@ -261,18 +277,40 @@ end
 
 log "\n"
 log "Program started"
-log "ARGV[0] = #{ARGV[0]}"
-show_now_playing = ARGV[0] == '-show-now-playing'
-download_now_playing = ARGV[0] != '-no-download-now-playing'
 
-nropster = Nropster.new(download_now_playing)
-
-if show_now_playing
-  log "Showing now playing"
-  nropster.shows.each {|show| puts show.to_s }
-  log "Done"
-  exit
+require 'optparse'
+options = {}
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage nropster [options]"
+  options[:download_now_playing] = true
+  opts.on('-d', '--[no-]download-now-playing', "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used. ") do
+    options[:download_now_playing] = false
+  end
+  options[:show_now_playing] = false
+  opts.on('-s', '--show-now-playing', 'Show Now Playing list and exit') do
+    options[:show_now_playing] = true
+  end
+  opts.on('-v', '--version', 'Show version') do
+    log true, VERSION_S
+    exit 1
+  end
 end
 
-nropster.run
-log true, "Done\n"
+begin
+  optparse.parse!
+rescue OptionParser::InvalidOption => ex
+  log true, ex.message
+  puts optparse
+  exit 1
+end
+log "Options:"
+log "download-now-playing = #{options[:download_now_playing]}"
+log "show-now-playing = #{options[:show_now_playing]}"
+
+nropster = Nropster.new(options[:download_now_playing])
+
+if options[:show_now_playing]
+  nropster.show_shows
+else
+  nropster.run
+end
