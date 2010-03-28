@@ -13,75 +13,107 @@ require 'progressbar'
 
 class Nropster
   attr_reader :shows
-  
+
   def initialize(show_shows)
-    @shows = TiVo.new.shows(show_shows).select {|show| should_download? show}
+    @shows = TiVo.new.shows(show_shows).select {|show| show.keep? }
   end
 
   def run
-    for show in @shows
-      job = DownloadJob.new(show, '/Users/mwilden/Nrop/nropster')
-      job.perform
-      if job.success?
-        job = EncodeJob.new(show, '/Users/mwilden/Nrop/nropster')
-        job.perform
-        if job.success?
-          puts 'Success'
-        end
-      end
-    end
+    shows = @shows.select {|show| should_download? show}
+    jobs = shows.map {|show| Job.new(show, :to_download)}
+    Thread.new {DownloadWorker.new(jobs).perform}
+    Thread.new {EncodeWorker.new(jobs).perform}
+    Thread.list.each {|thread| thread.join unless thread == Thread.main}
   end
 
   private
   def should_download? show
-    show.full_title =~ /Fellas|Lethal/
+    show.full_title =~ /Kelly Takes|Larry/
   end
 
 end
 
-class EncodeJob
-  def initialize show, output_dir
+class Job
+  attr_reader :show
+  attr_accessor :state, :input_filename, :output_filename
+
+  def initialize show, state
     @show = show
-    @input_filename = "#{output_dir}/#{show.downloaded_filename}"
-    @output_filename = "#{output_dir}/#{show.encoded_filename}"
-  end
-
-  def perform
-    puts "Encoding"
-    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{@input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{@output_filename}'`
-    File.delete @input_filename
-  end
-
-  def success?
-    File.exist? @output_filename
+    @state = state
   end
 end
 
-class DownloadJob
-  def initialize show, output_dir
-    @show = show
-    @output_filename = "#{output_dir}/#{show.downloaded_filename}"
+class DownloadWorker
+  def initialize jobs
+    @jobs = jobs
+    @output_dir = "/Users/mwilden/Nrop/nropster"
   end
 
   def perform
+    begin
+      anything_to_be_done = false
+      for job in @jobs
+        if job.state == :to_download
+          anything_to_be_done = true
+          download job
+        end
+      end
+      sleep(5)
+    end while anything_to_be_done
+  end
+
+  def download job
+    job.output_filename = "#{@output_dir}/#{job.show.downloaded_filename}"
     progress_bar = nil
-    puts "Downloading #{@show.full_title} (#{Console::ProgressBar.convert_bytes(@show.size)})"
-    IO.popen("tivodecode -o '#{@output_filename}' -", 'wb') do |tivodecode|
-      progress_bar = Console::ProgressBar.new(@show.full_title, @show.size)
-      @show.download do |chunk|
+    puts "Downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size)})"
+    IO.popen("tivodecode -o '#{job.output_filename}' -", 'wb') do |tivodecode|
+      progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
+      job.state = :downloading
+      job.show.download do |chunk|
         tivodecode << chunk
         progress_bar.inc(chunk.length)
       end
+      job.state = :downloaded
       progress_bar.finish
     end
   rescue Exception => err
-    progress_bar.finish
     puts err
-    File.delete @output_filename
+    job.state = :to_download
+    File.delete job.output_filename
   end
 
-  def success?
-    File.exist? @output_filename
+end
+
+class EncodeWorker
+  def initialize jobs
+    @jobs = jobs
+    @output_dir = "/Users/mwilden/Nrop/nropster"
+  end
+
+  def perform
+    begin
+      anything_to_be_done = false
+      for job in @jobs
+        if job.state != :encoded
+          anything_to_be_done = true
+        end
+
+        if job.state == :downloaded
+          encode job
+        end
+      end
+      sleep(5)
+    end while anything_to_be_done
+  end
+
+  def encode job
+    puts "Encoding"
+    input_filename = job.output_filename
+    job.output_filename = "#{@output_dir}/#{job.show.encoded_filename}"
+    job.state = :encoding
+    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{job.output_filename}'`
+    File.delete input_filename
+    job.state = :encoded
   end
 
 end
