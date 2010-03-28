@@ -23,9 +23,9 @@ def parse_options
       options[:download_now_playing] = false
     end
 
-    options[:show_now_playing_kept] = false
-    opts.on('-s', '--show-now-playing-kept', 'Show Now Playing (Kept) list and exit') do
-      options[:show_now_playing_kept] = true
+    options[:show_now_playing_keep] = false
+    opts.on('-s', '--show-now-playing-keep', 'Show Now Playing (Keep) list and exit') do
+      options[:show_now_playing_keep] = true
     end
 
     options[:destination_directory] = "/Volumes/LaCie HD/Input"
@@ -59,8 +59,8 @@ options = parse_options
 
 nropster = Nropster.new(options)
 
-if options[:show_now_playing_kept]
-  nropster.show_now_playing_kept
+if options[:show_now_playing_keep]
+  nropster.show_now_playing_keep
 else
   nropster.run
 end
