@@ -5,6 +5,7 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__), 'lib'))
 require 'optparse'
 require 'nropster'
 require 'logger'
+require 'lll'
 
 VERSION_S = 'nropster 1.0: Download shows from TiVo and encode to DV'
 
@@ -13,16 +14,27 @@ Logger.new(File.expand_path(File.join(File.dirname(__FILE__), 'work', 'log')))
 def parse_options
   options = {}
   optparse = OptionParser.new do |opts|
+
     opts.banner = "Usage nropster [options]"
+
     options[:download_now_playing] = true
     opts.on('-d', '--[no-]download-now-playing',
             "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used") do
       options[:download_now_playing] = false
     end
+
     options[:show_now_playing_kept] = false
     opts.on('-s', '--show-now-playing-kept', 'Show Now Playing (Kept) list and exit') do
       options[:show_now_playing_kept] = true
     end
+
+    options[:destination_directory] = "/Volumes/LaCie HD/Input"
+    opts.on('-o', '--destination_directory DIR') do |destination_directory|
+      options[:destination_directory] = destination_directory
+    end
+
+    options[:work_directory] = "/Users/mwilden/Nrop/nropster/work"
+
     opts.on('-v', '--version', 'Show version') do
       log VERSION_S
       exit 1
@@ -36,7 +48,7 @@ def parse_options
     puts optparse
     exit 1
   end
-  log "Options: download-now-playing = #{options[:download_now_playing]}, show-now-playing-kept = #{options[:show_now_playing_kept]}", false
+  log "Options: #{options.inspect}", false
   options
 end
 
@@ -45,7 +57,7 @@ log "Program started", false
 
 options = parse_options
 
-nropster = Nropster.new(options[:download_now_playing])
+nropster = Nropster.new(options)
 
 if options[:show_now_playing_kept]
   nropster.show_now_playing_kept

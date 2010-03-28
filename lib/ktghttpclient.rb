@@ -4,6 +4,7 @@
 # memory.
 #
 # All hail the ruby never closed class!
+$:.unshift File.expand_path(File.join(File.dirname(__FILE__), 'httpclient-2.1.2', 'lib'))
 require 'httpclient'
 
 class HTTPClient
