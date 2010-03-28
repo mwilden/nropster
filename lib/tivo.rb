@@ -58,7 +58,7 @@ class TiVo::Show
   end
 
   def time_captured_s
-    @time_captured.strftime('%m-%d %H:%M')
+    @time_captured.strftime('%m-%d-%H:%M')
   end
 
   def duration_s

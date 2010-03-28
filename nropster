@@ -16,7 +16,7 @@ def parse_options
     opts.banner = "Usage nropster [options]"
     options[:download_now_playing] = true
     opts.on('-d', '--[no-]download-now-playing',
-            "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used. ") do
+            "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used") do
       options[:download_now_playing] = false
     end
     options[:show_now_playing_kept] = false
@@ -48,7 +48,7 @@ options = parse_options
 nropster = Nropster.new(options[:download_now_playing])
 
 if options[:show_now_playing_kept]
-  nropster.show_shows
+  nropster.show_now_playing_kept
 else
   nropster.run
 end

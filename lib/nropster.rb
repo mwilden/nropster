@@ -6,7 +6,7 @@ class Nropster
     @shows = TiVo.new.shows(download_now_playing).select {|show| show.keep? }
   end
 
-  def show_shows
+  def show_now_playing_kept
     @shows.each {|show| puts show.to_s }
   end
 
