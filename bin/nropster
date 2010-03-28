@@ -10,16 +10,37 @@ require 'lll'
 
 require 'progressbar'
 
+$log_file = File.open(File.expand_path(File.join(File.dirname(__FILE__), 'log')), 'a')
+at_exit {$log_file.close}
+
+def log string_or_option, string = nil
+  if string_or_option.kind_of? String
+    string = string_or_option
+    do_puts = false
+  else
+    do_puts = string_or_option
+  end
+  file = $log_file
+  if file != $stdout && do_puts
+    puts string
+  end
+  file.puts Time.now.strftime('%m-%d-%y %H:%M ') + string
+  file.flush
+end
 
 class Nropster
   attr_reader :shows
 
-  def initialize(show_shows)
-    @shows = TiVo.new.shows(show_shows).select {|show| show.keep? }
+  def initialize(download_now_playing)
+    @shows = TiVo.new.shows(download_now_playing).select {|show| show.keep? }
   end
 
   def run
+    log true, 'Shows to keep:'
+    @shows.each {|show| log true, show.to_s}
     shows = @shows.select {|show| should_download? show}
+    log true, 'Shows to download:'
+    shows.each {|show| log true, show.to_s}
     jobs = shows.map {|show| Job.new(show, :to_download)}
     Thread.new {DownloadWorker.new(jobs).perform}
     Thread.new {EncodeWorker.new(jobs).perform}
@@ -28,6 +49,7 @@ class Nropster
 
   private
   def should_download? show
+#    show.full_title =~ /GoodFellas|Sixteen/
     show.full_title =~ /Kelly Takes|Larry/
   end
 
@@ -64,8 +86,9 @@ class DownloadWorker
 
   def download job
     job.output_filename = "#{@output_dir}/#{job.show.downloaded_filename}"
+    log job.output_filename
     progress_bar = nil
-    puts "Downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size)})"
+    log true, "Downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size).strip})"
     IO.popen("tivodecode -o '#{job.output_filename}' -", 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
@@ -75,9 +98,10 @@ class DownloadWorker
       end
       job.state = :downloaded
       progress_bar.finish
+      log true, "Finished downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size).strip})"
     end
   rescue Exception => err
-    puts err
+    log true, "Error downloading #{job.show.full_title}: #{err.to_s}"
     job.state = :to_download
     File.delete job.output_filename
   end
@@ -107,13 +131,14 @@ class EncodeWorker
   end
 
   def encode job
-    puts "Encoding"
     input_filename = job.output_filename
     job.output_filename = "#{@output_dir}/#{job.show.encoded_filename}"
+    log true, "Encoding #{input_filename} -> #{job.output_filename}"
     job.state = :encoding
     `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{job.output_filename}'`
     File.delete input_filename
     job.state = :encoded
+    log true, "Finished downloading #{job.show.full_title} (#{Console::ProgressBar.convert_bytes(job.show.size).strip})"
   end
 
 end
@@ -134,6 +159,7 @@ class TiVo
 
   private
   def download_shows
+    log true, "Downloading shows..."
     downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
     downloader.download_to_file(@shows_cache_filename)
   end
@@ -190,6 +216,10 @@ class Show
     filename_root + '.dv'
   end
 
+  def to_s
+    time_captured_s + ' ' + full_title + ' ' + Console::ProgressBar.convert_bytes(size).strip
+  end
+
   private
   def filename_root
     full_title + ' ' + time_captured_s
@@ -229,13 +259,20 @@ class Downloader
 
 end
 
-show_shows = ARGV[0] == 'shows'
+log "\n"
+log "Program started"
+log "ARGV[0] = #{ARGV[0]}"
+show_now_playing = ARGV[0] == '-show-now-playing'
+download_now_playing = ARGV[0] != '-no-download-now-playing'
 
-nropster = Nropster.new(show_shows)
+nropster = Nropster.new(download_now_playing)
 
-if show_shows
-  lll{'nropster.shows'};
+if show_now_playing
+  log "Showing now playing"
+  nropster.shows.each {|show| puts show.to_s }
+  log "Done"
   exit
 end
 
 nropster.run
+log true, "Done\n"
