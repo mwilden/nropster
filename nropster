@@ -65,3 +65,5 @@ else
   nropster.run
 end
 
+log "Done", false
+

@@ -4,6 +4,7 @@ require 'tivo'
 class Nropster
   def initialize(options)
     @now_playing_keep = TiVo.new.shows(options[:download_now_playing]).select {|show| show.keep? }
+    @to_download = @now_playing_keep.select {|show| download? show}
     @destination_directory = options[:destination_directory]
     @work_directory = options[:work_directory]
   end
@@ -13,18 +14,35 @@ class Nropster
   end
 
   def run
-    log 'Now Playing (Keep):'
-    @now_playing_keep.each {|show| log show.to_s}
-    to_download = @now_playing_keep.select {|show| download? show}
-    log 'To download:'
-    to_download.each {|show| log show.to_s}
-    jobs = to_download.map {|show| Job.new(show, :to_download)}
-    Thread.new {DownloadWorker.new(jobs, @work_directory).perform}
-    Thread.new {EncodeWorker.new(jobs, @destination_directory).perform}
-    Thread.list.each {|thread| thread.join unless thread == Thread.main}
+    show_lists
+    execute_jobs
+    show_results
   end
 
   private
+  def show_lists
+    log 'Now Playing (Keep):'
+    @now_playing_keep.each {|show| log show.to_s}
+    log 'To download:'
+    @to_download.each {|show| log show.to_s}
+  end
+
+  def show_results
+    log "Downloaded and encoded:"
+    for job in @jobs do
+      log "#{job} (#{size_s(job.size)})"
+      log "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
+          "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
+    end
+  end
+
+  def execute_jobs
+    @jobs = @to_download.map {|show| Job.new(show, :to_download)}
+    Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
+    Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
+    Thread.list.each {|thread| thread.join unless thread == Thread.main}
+  end
+
   def download? show
     show.full_title =~ /GoodFellas|Sixteen/
 #    show.full_title =~ /Kelly Takes|Larry/
@@ -33,7 +51,7 @@ end
 
 class Nropster::Job
   attr_reader :show
-  attr_accessor :state, :input_filename, :output_filename
+  attr_accessor :state, :input_filename, :output_filename, :download_duration, :encode_duration
 
   def initialize show, state
     @show = show
@@ -42,6 +60,10 @@ class Nropster::Job
 
   def to_s
     @show.full_title
+  end
+
+  def size
+    @show.size
   end
 end
 
@@ -71,19 +93,23 @@ class Nropster::DownloadWorker
     IO.popen("tivodecode -o '#{job.output_filename}' -", 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
+      started_at = Time.now
       job.show.download do |chunk|
         tivodecode << chunk
         progress_bar.inc(chunk.length)
       end
+      ended_at = Time.now
       job.state = :downloaded
       progress_bar.finish
-      log "Finished downloading #{job}"
+      log "  Finished downloading #{job}"
+      job.encode_duration = ended_at - started_at
+      log "    time: #{duration_s(job.encode_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.encode_duration)}/sec"
     end
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
-      log "Server busy trying to download #{job}"
+      log "  Server busy trying to download #{job}"
     else
-      log "Error downloading #{job}: #{err.to_s}"
+      log "  Error downloading #{job}: #{err.to_s}"
       log err.backtrace
     end
     job.state = :to_download
@@ -120,10 +146,25 @@ class Nropster::EncodeWorker
     job.output_filename = "#{@output_directory}/#{job.show.encoded_filename}"
     log "Encoding #{job}"
     job.state = :encoding
+    started_at = Time.now
     `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{job.output_filename}'`
+    ended_at = Time.now
     File.delete input_filename
     job.state = :encoded
-    log "Finished encoding #{job}"
+    log "  Finished encoding #{job}"
+    job.download_duration = ended_at - started_at
+    log "    time: #{duration_s(job.download_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.download_duration)}/sec"
   end
 
+end
+
+def size_s size
+  Console::ProgressBar.convert_bytes(size).strip
+end
+
+def duration_s duration
+  minutes = (duration / 60) % 60
+  minutes += 1 if duration % 60 != 0
+  hours = duration / 3600
+  sprintf("%d:%02d", hours, minutes)
 end
