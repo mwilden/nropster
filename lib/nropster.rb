@@ -3,10 +3,17 @@ require 'tivo'
 
 class Nropster
   def initialize(options)
-    @now_playing_keep = TiVo.new.shows(options[:download_now_playing]).select {|show| show.keep? }
-    @to_download = @now_playing_keep.select {|show| download? show}
+    @now_playing_keep = TiVo.new.now_playing(options[:download_now_playing]).select {|show| show.keep? }
     @destination_directory = options[:destination_directory]
     @work_directory = options[:work_directory]
+    @inclusion_regexp = Regexp.new(options[:inclusion_regexp]) if options[:inclusion_regexp]
+    @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
+
+    @to_download = @now_playing_keep.select {|show| download? show}
+
+  rescue Timeout::Error
+    log "TiVo web server is down"
+    exit 1
   end
 
   def show_now_playing_keep
@@ -23,16 +30,16 @@ class Nropster
   def show_lists
     log 'Now Playing (Keep):'
     @now_playing_keep.each {|show| log show.to_s}
-    log 'To download:'
+    log 'To Download:'
     @to_download.each {|show| log show.to_s}
   end
 
   def show_results
-    log "Downloaded and encoded:"
+    log "Downloaded and Encoded:"
     for job in @jobs do
       log "#{job} (#{size_s(job.size)})"
       log "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
-          "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
+              "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
     end
   end
 
@@ -44,8 +51,12 @@ class Nropster
   end
 
   def download? show
-    show.full_title =~ /GoodFellas|Sixteen/
-#    show.full_title =~ /Kelly Takes|Larry/
+    return true unless @inclusion_regexp || @exclusion_regexp
+    unless @inclusion_regexp.nil?
+      show.full_title =~ @inclusion_regexp
+    else
+      !(show.full_title =~ @exclusion_regexp)
+    end
   end
 end
 
@@ -110,7 +121,6 @@ class Nropster::DownloadWorker
       log "  Server busy trying to download #{job}"
     else
       log "  Error downloading #{job}: #{err.to_s}"
-      log err.backtrace
     end
     job.state = :to_download
     File.delete job.output_filename
