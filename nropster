@@ -22,12 +22,12 @@ def parse_options
       options[:show_now_playing_keep] = true
     end
 
-    options[:inclusion_regexp] = "Shot|Ship"#nil
+    options[:inclusion_regexp] = nil
     opts.on('-i', '--include REGEXP', 'Regexp of show names to include') do |regexp|
       options[:inclusion_regexp] = regexp
     end
 
-    options[:exclusion_regexp] = nil#"Sixteen|Simpsons|GoodFellas|Rush|Apes"
+    options[:exclusion_regexp] = "Shot|Larry|Sixteen|Simpsons|GoodFellas|Rush|Apes"
     opts.on('-x', '--exclude REGEXP', 'Regexp of show names to exclude') do |regexp|
       options[:exclusion_regexp] = regexp
     end
