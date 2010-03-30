@@ -117,7 +117,9 @@ class TiVo::Downloader
   end
 
   def download_to_file filename
-    File.open(filename, 'w') {|f| f.write get_content}
+    temp_filename = filename + '.tmp'
+    File.open(temp_filename, 'w') {|f| f.write get_content}
+    `mv '#{temp_filename}' '#{filename}'`
   end
 
   private
