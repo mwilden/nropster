@@ -22,6 +22,11 @@ def parse_options
       options[:show_now_playing_keep] = true
     end
 
+    options[:confirm] = true
+    opts.on('-c', '--confirm', '(default) Require pressing Enter before work starts') do
+      options[:show_now_playing_keep] = true
+    end
+
     options[:inclusion_regexp] = nil
     opts.on('-i', '--include REGEXP', 'Regexp of show names to include') do |regexp|
       options[:inclusion_regexp] = regexp

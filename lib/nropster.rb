@@ -3,6 +3,7 @@ require 'tivo'
 
 class Nropster
   def initialize(options)
+    @confirm = options[:confirm]
     @now_playing_keep = TiVo.new.now_playing(options[:download_now_playing]).select {|show| show.keep? }
     @destination_directory = options[:destination_directory]
     @work_directory = options[:work_directory]
@@ -22,6 +23,7 @@ class Nropster
 
   def run
     show_lists
+    confirm_execution
     execute_jobs
     show_results
   end
@@ -32,6 +34,13 @@ class Nropster
     @now_playing_keep.each {|show| log show.to_s}
     log 'To Download:'
     @to_download.each {|show| log show.to_s}
+  end
+
+  def confirm_execution
+    if @confirm
+      printf "Press Enter to continue or ^C to cancel"
+      $stdin.getc
+    end
   end
 
   def show_results
