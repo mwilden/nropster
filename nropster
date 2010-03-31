@@ -23,8 +23,8 @@ def parse_options
     end
 
     options[:confirm] = true
-    opts.on('-c', '--confirm', '(default) Require pressing Enter before work starts') do
-      options[:show_now_playing_keep] = true
+    opts.on('-c', '--[no-]confirm', '(default) Require pressing Enter before work starts') do |v|
+      options[:confirm] = v
     end
 
     options[:inclusion_regexp] = nil
