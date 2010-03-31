@@ -90,7 +90,7 @@ class TiVo::Show
 
   private
   def filename_root
-    full_title + ' ' + time_captured_s
+    full_title + ' ' + time_captured_s.gsub(':', '')
   end
 end
 
