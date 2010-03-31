@@ -27,7 +27,6 @@ def parse_options
       options[:confirm] = v
     end
 
-    options[:inclusion_regexp] = nil
     opts.on('-i', '--include REGEXP', 'Regexp of show names to include') do |regexp|
       options[:inclusion_regexp] = regexp
     end
@@ -39,8 +38,8 @@ def parse_options
 
     options[:download_now_playing] = true
     opts.on('-d', '--[no-]download-now-playing',
-            "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used") do
-      options[:download_now_playing] = false
+            "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used") do |v|
+      options[:download_now_playing] = v
     end
 
     options[:destination_directory] = "/Volumes/LaCie HD/Input"
