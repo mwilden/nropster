@@ -113,7 +113,7 @@ class Nropster::DownloadWorker
   def download job
     job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
     log "Downloading #{job}"
-    IO.popen("tivodecode -o '#{job.output_filename}' -", 'wb') do |tivodecode|
+    IO.popen(%Q[tivodecode -o "#{job.output_filename}" -], 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
       started_at = Time.now
@@ -169,7 +169,7 @@ class Nropster::EncodeWorker
     log "Encoding #{job}"
     job.state = :encoding
     started_at = Time.now
-    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i '#{input_filename}' -threads 2 -croptop 4 -target ntsc-dv '#{job.output_filename}'`
+    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i "#{input_filename}" -threads 2 -croptop 4 -target ntsc-dv "#{job.output_filename}"`
     ended_at = Time.now
     File.delete input_filename
     job.state = :encoded
