@@ -50,13 +50,16 @@ class Nropster
       log "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
               "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
     end
+    log "Total #{duration_s(@duration)}"
   end
 
   def execute_jobs
+    started_at = Time.now
     @jobs = @to_download.map {|show| Job.new(show, :to_download)}
     Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
     Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     Thread.list.each {|thread| thread.join unless thread == Thread.main}
+    @duration = Time.now - started_at
   end
 
   def download? show
