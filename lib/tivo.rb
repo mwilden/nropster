@@ -16,7 +16,7 @@ class TiVo
 
   private
   def download_now_playing
-    log "Downloading Now Playing"
+    log "Downloading Now Playing..."
     downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
     downloader.download_to_file(NOW_PLAYING_FILENAME)
   end

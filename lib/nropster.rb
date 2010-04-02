@@ -18,7 +18,9 @@ class Nropster
   end
 
   def show_now_playing_keep
+    show_header
     @now_playing_keep.each {|show| puts show.to_s }
+    puts
   end
 
   def run
@@ -29,16 +31,21 @@ class Nropster
   end
 
   private
+  def show_header
+    puts
+    puts 'Recorded    Dur  Title - Episode (Size)'
+    puts '----------- ---- --------------------------------------------'
+  end
+
   def show_lists
-    log 'Now Playing (Keep):'
-    @now_playing_keep.each {|show| log show.to_s}
-    log 'To Download:'
+    show_header
     @to_download.each {|show| log show.to_s}
+    puts
   end
 
   def confirm_execution
     if @confirm
-      printf "Press Enter to continue or ^C to cancel"
+      printf "Press Enter to continue or ^C to cancel: "
       $stdin.getc
     end
   end
