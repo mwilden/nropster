@@ -62,9 +62,9 @@ class TiVo::Show
   end
 
   def duration_s
-    minutes = (@duration / 60) % 60
-    minutes += 1 if @duration % 60 != 0
-    hours = @duration / 3600
+    minutes = (@duration.to_f / 60).ceil
+    hours = minutes / 60
+    minutes = minutes % 60
     sprintf("%d:%02d", hours, minutes)
   end
 
