@@ -13,6 +13,12 @@ Logger.new(File.expand_path(File.join(File.dirname(__FILE__), 'work', 'log')))
 
 def parse_options
   options = {}
+
+  inclusion_exclusion_filename = File.expand_path(File.join(File.dirname(__FILE__), 'inclusion_exclusion.yaml'))
+  inclusion_exclusion = YAML::load_file(inclusion_exclusion_filename) rescue {}
+  options[:inclusion_regexp] = inclusion_exclusion[:include]
+  options[:exclusion_regexp] = inclusion_exclusion[:exclude]
+
   optparse = OptionParser.new do |opts|
 
     opts.banner = "Usage nropster [options]"
@@ -31,7 +37,6 @@ def parse_options
       options[:inclusion_regexp] = regexp
     end
 
-    options[:exclusion_regexp] = "Shot|Larry|Sixteen|Simpsons|GoodFellas|Rush|Apes"
     opts.on('-x', '--exclude REGEXP', 'Regexp of show names to exclude') do |regexp|
       options[:exclusion_regexp] = regexp
     end
