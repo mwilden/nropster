@@ -46,7 +46,12 @@ class Nropster
   def confirm_execution
     if @confirm
       printf "Press Enter to continue or ^C to cancel: "
-      $stdin.getc
+      begin
+        $stdin.getc
+      rescue Interrupt
+        puts
+        exit 1
+      end
     end
   end
 
