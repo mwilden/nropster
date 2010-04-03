@@ -4,14 +4,13 @@ require 'tivo'
 class Nropster
   def initialize(options)
     @confirm = options[:confirm]
-    @now_playing_keep = TiVo.new.now_playing(options[:download_now_playing]).select {|show| show.keep? }
     @destination_directory = options[:destination_directory]
     @work_directory = options[:work_directory]
     @inclusion_regexp = Regexp.new(options[:inclusion_regexp]) if options[:inclusion_regexp]
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
+    @download_now_playing = options[:download_now_playing]
 
-    @to_download = @now_playing_keep.select {|show| download? show}
-
+    partition_now_playing_list
   rescue Timeout::Error
     log "TiVo web server is down"
     exit 1
@@ -31,6 +30,17 @@ class Nropster
   end
 
   private
+  def partition_now_playing_list
+    @now_playing_keep = TiVo.new.now_playing(@download_now_playing).select {|show| show.keep? }
+    @already_downloaded, @to_download = @now_playing_keep.partition {|show| already_downloaded?(show)}
+    @to_download = @to_download.select {|show| download? show}
+  end
+
+  def already_downloaded?(show)
+    string = "#{@destination_directory}/#{show.encoded_filename}"
+    File.exist?(string)
+  end
+
   def show_header
     puts
     puts 'Recorded    Dur  Title - Episode (Size)'
@@ -40,6 +50,10 @@ class Nropster
   def show_lists
     show_header
     @to_download.each {|show| log show.to_s}
+    unless @already_downloaded.empty?
+      log "Already Downloaded:"
+      @already_downloaded.each {|show| log show.to_s}
+    end
     puts
   end
 
