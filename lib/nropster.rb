@@ -17,6 +17,7 @@ class Nropster
   end
 
   def show_now_playing_keep
+    puts
     show_header
     @now_playing_keep.each {|show| puts show.to_s }
     puts
@@ -42,13 +43,14 @@ class Nropster
   end
 
   def show_header
-    puts
-    puts 'Recorded    Dur  Title - Episode (Size)'
-    puts '----------- ---- --------------------------------------------'
+    log 'Recorded    Dur  Title (Size)'
+    log '----------- ---- --------------------------------------------'
   end
 
   def show_lists
+    puts
     show_header
+    log "To Download:"
     @to_download.each {|show| log show.to_s}
     unless @already_downloaded.empty?
       log "Already Downloaded:"
@@ -63,10 +65,19 @@ class Nropster
       begin
         $stdin.getc
       rescue Interrupt
-        puts
+        puts "\n\n"
         exit 1
       end
     end
+  end
+
+  def execute_jobs
+    started_at = Time.now
+    @jobs = @to_download.map {|show| Job.new(show, :to_download)}
+    Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
+    Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
+    Thread.list.each {|thread| thread.join unless thread == Thread.main}
+    @duration = Time.now - started_at
   end
 
   def show_results
@@ -77,15 +88,6 @@ class Nropster
               "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
     end
     log "Total #{duration_s(@duration)}"
-  end
-
-  def execute_jobs
-    started_at = Time.now
-    @jobs = @to_download.map {|show| Job.new(show, :to_download)}
-    Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
-    Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
-    Thread.list.each {|thread| thread.join unless thread == Thread.main}
-    @duration = Time.now - started_at
   end
 
   def download? show
