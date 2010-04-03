@@ -48,8 +48,13 @@ def parse_options
     end
 
     options[:destination_directory] = "/Volumes/LaCie HD/Input"
-    opts.on('-o', '--destination_directory DIR') do |destination_directory|
-      options[:destination_directory] = destination_directory
+    opts.on('-o', '--destination_directory DIR', 'Where to put the DV file' ) do |directory|
+      options[:destination_directory] = directory
+    end
+
+    options[:edited_directory] = "/Volumes/LaCie HD/Edited/Media/Nrop"
+    opts.on('-e', '--edited_directory DIR', 'Where the DV file might have been moved after editing (for existence check)') do |directory|
+      options[:edited_directory] = directory
     end
 
     options[:work_directory] = "/Users/mwilden/Nrop/nropster/work"

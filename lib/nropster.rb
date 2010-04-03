@@ -5,6 +5,7 @@ class Nropster
   def initialize(options)
     @confirm = options[:confirm]
     @destination_directory = options[:destination_directory]
+    @edited_directory = options[:edited_directory]
     @work_directory = options[:work_directory]
     @inclusion_regexp = Regexp.new(options[:inclusion_regexp]) if options[:inclusion_regexp]
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
@@ -38,8 +39,9 @@ class Nropster
   end
 
   def already_downloaded?(show)
-    string = "#{@destination_directory}/#{show.encoded_filename}"
-    File.exist?(string)
+    destination_file = "#{@destination_directory}/#{show.encoded_filename}"
+    edited_file = "#{@edited_directory}/#{show.encoded_filename}"
+    File.exist?(destination_file) || File.exist?(edited_file)
   end
 
   def show_header
