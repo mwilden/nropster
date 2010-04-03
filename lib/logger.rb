@@ -10,7 +10,7 @@ end
 
 def log data, output_to_stdout_also = true
   data = data.inspect unless data.kind_of? String
-  puts data if output_to_stdout_also
+  puts "* " + data if output_to_stdout_also
   Logger.file.puts(Time.now.strftime('%m-%d-%y %H:%M ') + data)
   Logger.file.flush
 end
