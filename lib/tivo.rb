@@ -54,7 +54,7 @@ class TiVo::Show
 
   def full_title
     return @title if @episode_title.empty?
-    @title + ' - ' + @episode_title
+    @title + '-' + @episode_title
   end
 
   def time_captured_s
