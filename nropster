@@ -42,9 +42,9 @@ def parse_options
     end
 
     options[:download_now_playing] = true
-    opts.on('-d', '--[no-]download-now-playing',
-            "(default) Download Now Playing list from TiVo and save for when --no-download-now-playing options is used") do |v|
-      options[:download_now_playing] = v
+    opts.on('-n', '--no-download-now-playing',
+            "Don't download Now Playing list from TiVo") do
+      options[:download_now_playing] = false
     end
 
     options[:destination_directory] = "/Volumes/LaCie HD/Input"
