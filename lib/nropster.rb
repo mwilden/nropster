@@ -12,6 +12,7 @@ class Nropster
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
     @download_now_playing = options[:download_now_playing]
     @force_download_existing = options[:force_download_existing]
+    @tivo = TiVo.new(@work_directory)
 
     initialize_show_lists
 
@@ -35,11 +36,16 @@ class Nropster
   private
 
   def initialize_show_lists
-    @now_playing_keep = TiVo.new.now_playing(@download_now_playing).select {|show| show.keep? }
+    @now_playing_keep = get_now_playing.select {|show| show.keep? }
     downloadable = @now_playing_keep.select {|show| download? show}
     @to_download, @already_downloaded = downloadable.partition do |show|
       not already_downloaded?(show) or @force_download_existing
     end
+  end
+
+  def get_now_playing
+    msg "Downloading Now Playing list" if @download_now_playing
+    @tivo.now_playing(@download_now_playing)
   end
 
   def anything_to_do?

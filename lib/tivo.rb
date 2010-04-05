@@ -1,10 +1,11 @@
 require 'rubygems'
 require 'nokogiri'
 require 'ktghttpclient'
-require 'msg'
 
 class TiVo
-  NOW_PLAYING_FILENAME = File.expand_path(File.join(File.dirname(__FILE__), '..', 'work', 'now_playing.xml'))
+  def initialize(work_directory)
+    @now_playing_filename = File.join(work_directory, 'now_playing.xml')
+  end
 
   def now_playing(reload = false)
     download_now_playing if reload
@@ -17,14 +18,13 @@ class TiVo
 
   private
   def download_now_playing
-    msg "Downloading Now Playing..."
     downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
-    downloader.download_to_file(NOW_PLAYING_FILENAME)
+    downloader.download_to_file(@now_playing_filename)
   end
 
   def load_now_playing
     shows = []
-    document = Nokogiri::XML(File.read(NOW_PLAYING_FILENAME))
+    document = Nokogiri::XML(File.read(@now_playing_filename))
     document.css('Item').each do |item|
       item_details = item.css('Details')
       if item_details.css('ContentType').text =~ /raw-tts/
