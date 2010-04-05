@@ -12,7 +12,8 @@ class Nropster
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
     @download_now_playing = options[:download_now_playing]
 
-    partition_now_playing_list
+    initialize_show_lists
+
   rescue Timeout::Error
     msg "TiVo web server is down"
     exit 1
@@ -20,16 +21,25 @@ class Nropster
 
   def run
     show_lists
-    confirm_execution
-    execute_jobs
-    show_results
+    unless anything_to_do?
+      puts 'Nothing to do'
+    else
+      confirm_execution
+      execute_jobs
+      show_results
+    end
   end
 
   private
-  def partition_now_playing_list
+
+  def initialize_show_lists
     @now_playing_keep = TiVo.new.now_playing(@download_now_playing).select {|show| show.keep? }
     @already_downloaded, @to_download = @now_playing_keep.partition {|show| already_downloaded?(show)}
     @to_download = @to_download.select {|show| download? show}
+  end
+
+  def anything_to_do?
+    @to_download.any?
   end
 
   def already_downloaded?(show)
