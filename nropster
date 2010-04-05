@@ -7,7 +7,7 @@ require 'nropster'
 require 'logger'
 require 'lll'
 
-VERSION_S = 'nropster 1.1: Download shows from TiVo and encode to DV'
+VERSION_S = 'nropster 1.2: Download shows from TiVo and encode to DV'
 
 Logger.new(File.expand_path(File.join(File.dirname(__FILE__), 'work', 'log')))
 
