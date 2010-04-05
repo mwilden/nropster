@@ -1,5 +1,6 @@
 require 'progressbar'
 require 'tivo'
+require 'msg'
 
 class Nropster
   def initialize(options)
@@ -13,7 +14,7 @@ class Nropster
 
     partition_now_playing_list
   rescue Timeout::Error
-    log "TiVo web server is down"
+    msg "TiVo web server is down"
     exit 1
   end
 
@@ -45,18 +46,18 @@ class Nropster
   end
 
   def show_header
-    log 'Recorded    Dur  Title (Size)'
-    log '----------- ---- --------------------------------------------'
+    msg 'Recorded    Dur  Title (Size)'
+    msg '----------- ---- --------------------------------------------'
   end
 
   def show_lists
     puts
     show_header
-    log "To Download:"
-    @to_download.each {|show| log show.to_s}
+    msg "To Download:"
+    @to_download.each {|show| msg show.to_s}
     unless @already_downloaded.empty?
-      log "Already Downloaded:"
-      @already_downloaded.each {|show| log show.to_s}
+      msg "Already Downloaded:"
+      @already_downloaded.each {|show| msg show.to_s}
     end
     puts
   end
@@ -84,13 +85,13 @@ class Nropster
 
   def show_results
     puts
-    log "Downloaded and Encoded:"
+    msg "Downloaded and Encoded:"
     for job in @jobs do
-      log "#{job} (#{size_s(job.size)})"
-      log "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
+      msg "#{job} (#{size_s(job.size)})"
+      msg "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
               "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
     end
-    log "Total #{duration_s(@duration)}"
+    msg "Total #{duration_s(@duration)}"
   end
 
   def download? show
@@ -143,7 +144,7 @@ class Nropster::DownloadWorker
 
   def download job
     job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
-    log "Downloading #{job}"
+    msg "Downloading #{job}"
     IO.popen(%Q[tivodecode -o "#{job.output_filename}" -], 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
@@ -155,15 +156,15 @@ class Nropster::DownloadWorker
       ended_at = Time.now
       job.state = :downloaded
       progress_bar.finish
-      log "  Finished downloading #{job}"
+      msg "  Finished downloading #{job}"
       job.encode_duration = ended_at - started_at
-      log "    time: #{duration_s(job.encode_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.encode_duration)}/sec"
+      msg "    time: #{duration_s(job.encode_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.encode_duration)}/sec"
     end
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
-      log "  Server busy trying to download #{job}"
+      msg "  Server busy trying to download #{job}"
     else
-      log "  Error downloading #{job}: #{err.to_s}"
+      msg "  Error downloading #{job}: #{err.to_s}"
     end
     job.state = :to_download
     File.delete job.output_filename
@@ -197,16 +198,16 @@ class Nropster::EncodeWorker
   def encode job
     input_filename = job.output_filename
     job.output_filename = "#{@output_directory}/#{job.show.encoded_filename}"
-    log "Encoding #{job}"
+    msg "Encoding #{job}"
     job.state = :encoding
     started_at = Time.now
     `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i "#{input_filename}" -threads 2 -croptop 4 -target ntsc-dv "#{job.output_filename}"`
     ended_at = Time.now
     File.delete input_filename
     job.state = :encoded
-    log "  Finished encoding #{job}"
+    msg "  Finished encoding #{job}"
     job.download_duration = ended_at - started_at
-    log "    time: #{duration_s(job.download_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.download_duration)}/sec"
+    msg "    time: #{duration_s(job.download_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.download_duration)}/sec"
   end
 
 end

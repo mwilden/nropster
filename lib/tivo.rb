@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'ktghttpclient'
+require 'msg'
 
 class TiVo
   NOW_PLAYING_FILENAME = File.expand_path(File.join(File.dirname(__FILE__), '..', 'work', 'now_playing.xml'))
@@ -16,7 +17,7 @@ class TiVo
 
   private
   def download_now_playing
-    log "Downloading Now Playing..."
+    msg "Downloading Now Playing..."
     downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
     downloader.download_to_file(NOW_PLAYING_FILENAME)
   end

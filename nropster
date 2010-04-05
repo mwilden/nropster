@@ -4,12 +4,10 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__), 'lib'))
 
 require 'optparse'
 require 'nropster'
-require 'logger'
+require 'msg'
 require 'lll'
 
 VERSION_S = 'nropster 1.2: Download shows from TiVo and encode to DV'
-
-Logger.new(File.expand_path(File.join(File.dirname(__FILE__), 'work', 'log')))
 
 def parse_options
   options = {}
@@ -60,7 +58,7 @@ def parse_options
     options[:work_directory] = "/Users/mwilden/Nrop/nropster/work"
 
     opts.on('-v', '--version', 'Show version') do
-      log VERSION_S
+      msg VERSION_S
       exit 1
     end
   end
@@ -68,16 +66,12 @@ def parse_options
   begin
     optparse.parse!
   rescue OptionParser::InvalidOption => ex
-    log ex.message
+    msg ex.message
     puts optparse
     exit 1
   end
-  log "Options: #{options.inspect}", false
   options
 end
-
-log "\n", false
-log "Program started", false
 
 options = parse_options
 
@@ -88,6 +82,4 @@ if options[:show_now_playing_keep]
 else
   nropster.run
 end
-
-log "Done", false
 
