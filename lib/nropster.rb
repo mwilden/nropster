@@ -113,7 +113,7 @@ class Nropster
     if @inclusion_regexp
       show.full_title =~ @inclusion_regexp
     else
-      !(show.full_title =~ @exclusion_regexp)
+      not show.full_title =~ @exclusion_regexp
     end
   end
 end
