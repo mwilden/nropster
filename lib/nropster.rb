@@ -11,6 +11,7 @@ class Nropster
     @inclusion_regexp = Regexp.new(options[:inclusion_regexp]) if options[:inclusion_regexp]
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
     @download_now_playing = options[:download_now_playing]
+    @force_download_existing = options[:force_download_existing]
 
     initialize_show_lists
 
@@ -34,8 +35,10 @@ class Nropster
 
   def initialize_show_lists
     @now_playing_keep = TiVo.new.now_playing(@download_now_playing).select {|show| show.keep? }
-    @already_downloaded, @to_download = @now_playing_keep.partition {|show| already_downloaded?(show)}
-    @to_download = @to_download.select {|show| download? show}
+    downloadable = @now_playing_keep.select {|show| download? show}
+    @to_download, @already_downloaded = downloadable.partition do |show|
+      not already_downloaded?(show) or @force_download_existing
+    end
   end
 
   def anything_to_do?

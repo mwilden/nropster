@@ -38,6 +38,12 @@ def parse_options
       options[:exclusion_regexp] = regexp
     end
 
+    options[:force_download_existing] = false
+    opts.on('-f', '--force',
+            "Download shows even if already downloaded") do
+      options[:force_download_existing] = true
+    end
+
     options[:download_now_playing] = true
     opts.on('-n', '--no-download-now-playing',
             "Don't download Now Playing list from TiVo") do
