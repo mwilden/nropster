@@ -9,13 +9,17 @@ require 'lll'
 
 VERSION_S = 'nropster 1.2: Download shows from TiVo and encode to DV'
 
-def parse_options
-  options = {}
-
-  inclusion_exclusion_filename = File.expand_path(File.join(File.dirname(__FILE__), 'inclusion_exclusion.yaml'))
+def read_config_file(options)
+  inclusion_exclusion_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))
   inclusion_exclusion = YAML::load_file(inclusion_exclusion_filename) rescue {}
   options[:inclusion_regexp] = inclusion_exclusion[:include]
   options[:exclusion_regexp] = inclusion_exclusion[:exclude]
+end
+
+def parse_options
+  options = {}
+
+  read_config_file(options)
 
   optparse = OptionParser.new do |opts|
 
