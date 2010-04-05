@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'ktghttpclient'
+require 'formatter'
 
 class TiVo
   def initialize(work_directory)
@@ -53,24 +54,13 @@ class TiVo::Show
     @keep
   end
 
+  def download &block
+    @tivo.download_show self, &block
+  end
+
   def full_title
     return @title if @episode_title.empty?
     @title + '-' + @episode_title
-  end
-
-  def time_captured_s
-    @time_captured.strftime('%m-%d-%H:%M')
-  end
-
-  def duration_s
-    minutes = (@duration.to_f / 60).ceil
-    hours = minutes / 60
-    minutes = minutes % 60
-    sprintf("%d:%02d", hours, minutes)
-  end
-
-  def download &block
-    @tivo.download_show self, &block
   end
 
   def downloaded_filename
@@ -85,11 +75,19 @@ class TiVo::Show
     "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})"
   end
 
-  def size_s
-    Console::ProgressBar.convert_bytes(size).strip
+  private
+  def time_captured_s
+    Formatter.time(@time_captured)
   end
 
-  private
+  def duration_s
+    Formatter.duration(@duration)
+  end
+
+  def size_s
+    Formatter.size(size)
+  end
+
   def filename_root
     full_title + ' ' + time_captured_s.gsub(':', '')
   end

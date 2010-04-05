@@ -102,11 +102,9 @@ class Nropster
     puts
     msg "Downloaded and Encoded:"
     for job in @jobs do
-      msg "#{job} (#{size_s(job.size)})"
-      msg "  download: #{duration_s(job.download_duration)} (#{size_s(job.size / job.download_duration)}/sec) " +
-              "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
+      job.show_complete_statistics
     end
-    msg "Total #{duration_s(@duration)}"
+    msg "Total #{Formatter.duration(@duration)}"
     puts
   end
 
@@ -135,6 +133,27 @@ class Nropster::Job
 
   def size
     @show.size
+  end
+
+  def show_statistics(duration_method, rate_method)
+    msg "    time: #{Formatter.duration(send(duration_method))} " +
+            "size: #{Formatter.size(size)} " +
+            "rate: #{Formatter.size(send(rate_method))}/sec"
+  end
+
+  def show_complete_statistics
+    msg "#{to_s} (#{Formatter.size(size)})"
+    msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
+            "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
+  end
+
+  private
+  def download_rate
+    @show.size / @download_duration
+  end
+
+  def encode_rate
+    @show.size / @encode_duration
   end
 end
 
@@ -175,8 +194,8 @@ class Nropster::DownloadWorker < Nropster::Worker
       job.state = :downloaded
       progress_bar.finish
       msg "  Finished downloading #{job}"
-      job.encode_duration = ended_at - started_at
-      msg "    time: #{duration_s(job.encode_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.encode_duration)}/sec"
+      job.download_duration = ended_at - started_at
+      job.show_statistics(:download_duration, :download_rate)
     end
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
@@ -219,19 +238,8 @@ class Nropster::EncodeWorker < Nropster::Worker
     File.delete input_filename
     job.state = :encoded
     msg "  Finished encoding #{job}"
-    job.download_duration = ended_at - started_at
-    msg "    time: #{duration_s(job.download_duration)} size: #{size_s(job.show.size)} rate: #{size_s(job.show.size / job.download_duration)}/sec"
+    job.encode_duration = ended_at - started_at
+    job.show_statistics(:encode_duration, :encode_rate)
   end
 
-end
-
-def size_s size
-  Console::ProgressBar.convert_bytes(size).strip
-end
-
-def duration_s duration
-  minutes = (duration / 60) % 60
-  minutes += 1 if duration % 60 != 0
-  hours = duration / 3600
-  sprintf("%d:%02d", hours, minutes)
 end
