@@ -86,9 +86,9 @@ class Nropster
   def execute_jobs
     started_at = Time.now
     @jobs = @to_download.map {|show| Job.new(show, :to_download)}
-    Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
-    Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
-    Thread.list.each {|thread| thread.join unless thread == Thread.main}
+    download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
+    encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
+    [download_worker, encode_worker].each {|thread| thread.join}
     @duration = Time.now - started_at
   end
 
@@ -106,7 +106,7 @@ class Nropster
 
   def download? show
     return true unless @inclusion_regexp || @exclusion_regexp
-    unless @inclusion_regexp.nil?
+    if @inclusion_regexp
       show.full_title =~ @inclusion_regexp
     else
       !(show.full_title =~ @exclusion_regexp)
@@ -132,12 +132,14 @@ class Nropster::Job
   end
 end
 
-class Nropster::DownloadWorker
+class Nropster::Worker
   def initialize jobs, output_directory
     @jobs = jobs
     @output_directory = output_directory
   end
+end
 
+class Nropster::DownloadWorker < Nropster::Worker
   def perform
     while true
       anything_to_be_done = false
@@ -182,12 +184,7 @@ class Nropster::DownloadWorker
 
 end
 
-class Nropster::EncodeWorker
-  def initialize jobs, output_directory
-    @jobs = jobs
-    @output_directory = output_directory
-  end
-
+class Nropster::EncodeWorker < Nropster::Worker
   def perform
     while true
       anything_to_be_done = false
