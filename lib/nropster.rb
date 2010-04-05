@@ -23,7 +23,8 @@ class Nropster
   def run
     show_lists
     unless anything_to_do?
-      puts 'Nothing to do'
+      puts "Nothing to do"
+      puts
     else
       confirm_execution
       execute_jobs
@@ -74,8 +75,10 @@ class Nropster
       begin
         $stdin.getc
       rescue Interrupt
-        puts "\n\n"
         exit 1
+      ensure
+        puts
+        puts
       end
     end
   end
@@ -98,6 +101,7 @@ class Nropster
               "encode: #{duration_s(job.encode_duration)} (#{size_s(job.size / job.encode_duration)}/sec)"
     end
     msg "Total #{duration_s(@duration)}"
+    puts
   end
 
   def download? show
