@@ -83,6 +83,7 @@ class Nropster
   end
 
   def show_results
+    puts
     log "Downloaded and Encoded:"
     for job in @jobs do
       log "#{job} (#{size_s(job.size)})"
