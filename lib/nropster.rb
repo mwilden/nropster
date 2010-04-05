@@ -49,12 +49,12 @@ class Nropster
   end
 
   def show_header
-    msg 'Recorded    Dur  Title (Size)'
+    puts
+    msg 'Recorded    Len  Title (Size)'
     msg '----------- ---- --------------------------------------------'
   end
 
   def show_lists
-    puts
     show_header
     msg "To Download:"
     @to_download.each {|show| msg show.to_s}
@@ -67,7 +67,7 @@ class Nropster
 
   def confirm_execution
     if @confirm
-      printf "Press Enter to continue or ^C to cancel: "
+      printf "Press Enter to download or ^C to cancel: "
       begin
         $stdin.getc
       rescue Interrupt
