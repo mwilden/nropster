@@ -18,13 +18,6 @@ class Nropster
     exit 1
   end
 
-  def show_now_playing_keep
-    puts
-    show_header
-    @now_playing_keep.each {|show| puts show.to_s }
-    puts
-  end
-
   def run
     show_lists
     confirm_execution

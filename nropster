@@ -21,11 +21,6 @@ def parse_options
 
     opts.banner = "Usage nropster [options]"
 
-    options[:show_now_playing_keep] = false
-    opts.on('-s', '--show-now-playing-keep', 'Show Now Playing (Keep) list and exit') do
-      options[:show_now_playing_keep] = true
-    end
-
     options[:confirm] = true
     opts.on('-c', '--[no-]confirm', '(default) Require pressing Enter before work starts') do |v|
       options[:confirm] = v
@@ -73,13 +68,4 @@ def parse_options
   options
 end
 
-options = parse_options
-
-nropster = Nropster.new(options)
-
-if options[:show_now_playing_keep]
-  nropster.show_now_playing_keep
-else
-  nropster.run
-end
-
+Nropster.new(parse_options).run
