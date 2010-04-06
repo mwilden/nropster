@@ -180,7 +180,7 @@ class Nropster::DownloadWorker < Nropster::Worker
         end
       end
       break unless anything_to_be_done
-      sleep(5)
+      sleep(1)
     end
   end
 
@@ -228,7 +228,7 @@ class Nropster::EncodeWorker < Nropster::Worker
         end
       end
       break unless anything_to_be_done
-      sleep(5)
+      sleep(1)
     end
   end
 
