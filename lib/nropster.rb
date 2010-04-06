@@ -168,10 +168,15 @@ class Nropster::DownloadWorker < Nropster::Worker
   def perform
     while true
       anything_to_be_done = false
+      just_downloaded_file = false
       for job in @jobs
         if job.state == :to_download
           anything_to_be_done = true
+          if just_downloaded_file
+            sleep(3)
+          end
           download job
+          just_downloaded_file = true
         end
       end
       break unless anything_to_be_done
