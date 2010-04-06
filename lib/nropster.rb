@@ -91,7 +91,7 @@ class Nropster
 
   def execute_jobs
     started_at = Time.now
-    @jobs = @to_download.map {|show| Job.new(show, :to_download)}
+    @jobs = @to_download.map {|show| Job.new(show)}
     download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
     encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     [download_worker, encode_worker].each {|thread| thread.join}
@@ -122,9 +122,9 @@ class Nropster::Job
   attr_reader :show
   attr_accessor :state, :input_filename, :output_filename, :download_duration, :encode_duration
 
-  def initialize show, state
+  def initialize show
     @show = show
-    @state = state
+    @state = :to_download
   end
 
   def to_s
