@@ -81,9 +81,9 @@ class Nropster
       begin
         $stdin.getc
       rescue Interrupt
+        puts
         exit 1
       ensure
-        puts
         puts
       end
     end
@@ -100,12 +100,20 @@ class Nropster
 
   def show_results
     puts
-    msg "Downloaded and Encoded:"
-    for job in @jobs do
-      job.show_complete_statistics
-    end
+    show_results_in_state(:encoded, "Downloaded and Encoded")
+    show_results_in_state(:errored, "Errors")
     msg "Total #{Formatter.duration(@duration)}"
     puts
+  end
+
+  def show_results_in_state(state, header)
+    jobs = @jobs.select {|job| job.state == state }
+    unless jobs.empty?
+      msg header + ':'
+      for job in jobs do
+        job.show_complete_statistics
+      end
+    end
   end
 
   def download? show
@@ -143,6 +151,7 @@ class Nropster::Job
 
   def show_complete_statistics
     msg "#{to_s} (#{Formatter.size(size)})"
+    return if @state == :errored
     msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
             "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
   end
@@ -205,10 +214,11 @@ class Nropster::DownloadWorker < Nropster::Worker
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
       msg "  Server busy trying to download #{job}"
+      job.state = :to_download
     else
       msg "  Error downloading #{job}: #{err.to_s}"
+      job.state = :errored
     end
-    job.state = :to_download
     File.delete job.output_filename
   end
 
@@ -219,7 +229,7 @@ class Nropster::EncodeWorker < Nropster::Worker
     while true
       anything_to_be_done = false
       for job in @jobs
-        if job.state != :encoded
+        if not [:encoded, :errored].include? job.state
           anything_to_be_done = true
         end
 
