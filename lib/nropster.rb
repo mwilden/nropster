@@ -92,7 +92,7 @@ class Nropster
   def execute_jobs
     started_at = Time.now
     @jobs = @to_download.map {|show| Job.new(show)}
-    download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
+    download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory, @tivo.mak).perform}
     encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     [download_worker, encode_worker].each {|thread| thread.join}
     @duration = Time.now - started_at
@@ -174,6 +174,11 @@ class Nropster::Worker
 end
 
 class Nropster::DownloadWorker < Nropster::Worker
+  def initialize jobs, output_directory, mak
+    @mak = mak
+    super jobs, output_directory
+  end
+
   def perform
     while true
       anything_to_be_done = false
@@ -196,7 +201,7 @@ class Nropster::DownloadWorker < Nropster::Worker
   def download job
     job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
     msg "Downloading #{job}"
-    IO.popen(%Q[tivodecode -o "#{job.output_filename}" -], 'wb') do |tivodecode|
+    IO.popen(%Q[tivodecode -o "#{job.output_filename}" -m "#{@mak}" -], 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
       started_at = Time.now

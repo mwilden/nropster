@@ -14,12 +14,16 @@ class TiVo
   end
 
   def download_show show, &block
-    Downloader.new(show.url).download &block
+    Downloader.new(show.url, mak).download &block
+  end
+
+  def mak
+    8185711423
   end
 
   private
   def download_now_playing
-    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes')
+    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes', mak)
     downloader.download_to_file(@now_playing_filename)
   end
 
@@ -94,11 +98,11 @@ class TiVo::Show
 end
 
 class TiVo::Downloader
-  def initialize(url)
+  def initialize(url, mak)
     @url = url
     @client = HTTPClient.new
     @client.ssl_config.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    @client.set_auth(@url, 'tivo', 8185711423)
+    @client.set_auth(@url, 'tivo', mak)
   end
 
   def download
