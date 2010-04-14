@@ -254,6 +254,11 @@ class Nropster::EncodeWorker < Nropster::Worker
     job.state = :encoding
     started_at = Time.now
     `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i "#{input_filename}" -threads 2 -croptop 4 -target ntsc-dv "#{job.output_filename}"`
+    unless File.exists?(job.output_filename)
+      msg "  Error encoding #{job}"
+      job.state = :errored
+      return
+    end
     ended_at = Time.now
     File.delete input_filename
     job.state = :encoded
