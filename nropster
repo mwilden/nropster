@@ -61,7 +61,7 @@ def parse_options
       options[:edited_directory] = directory
     end
 
-    options[:work_directory] = "/Users/mwilden/Nrop/nropster/work"
+    options[:work_directory] = "/tmp"
 
     opts.on('-v', '--version', 'Show version') do
       msg VERSION_S
