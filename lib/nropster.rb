@@ -171,6 +171,11 @@ class Nropster::Worker
     @jobs = jobs
     @output_directory = output_directory
   end
+
+  def quote_for_exec str
+    with_escaped_apostrophes = str.gsub /'/, "'\\\\''"
+    "'#{with_escaped_apostrophes}'"
+  end
 end
 
 class Nropster::DownloadWorker < Nropster::Worker
@@ -201,7 +206,7 @@ class Nropster::DownloadWorker < Nropster::Worker
   def download job
     job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
     msg "Downloading #{job}"
-    IO.popen(%Q[tivodecode -o "#{job.output_filename}" -m "#{@mak}" -], 'wb') do |tivodecode|
+    IO.popen(%Q[tivodecode -o #{quote_for_exec(job.output_filename)} -m "#{@mak}" -], 'wb') do |tivodecode|
       progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
       job.state = :downloading
       started_at = Time.now
@@ -253,7 +258,7 @@ class Nropster::EncodeWorker < Nropster::Worker
     msg "Encoding #{job}"
     job.state = :encoding
     started_at = Time.now
-    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i "#{input_filename}" -threads 2 -croptop 4 -target ntsc-dv "#{job.output_filename}"`
+    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i #{quote_for_exec(input_filename)} -threads 2 -croptop 4 -target ntsc-dv #{quote_for_exec(job.output_filename)}`
     unless File.exists?(job.output_filename)
       msg "  Error encoding #{job}"
       job.state = :errored
