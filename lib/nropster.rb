@@ -258,7 +258,7 @@ class Nropster::EncodeWorker < Nropster::Worker
     msg "Encoding #{job}"
     job.state = :encoding
     started_at = Time.now
-    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i #{quote_for_exec(input_filename)} -threads 2 -croptop 4 -target ntsc-dv #{quote_for_exec(job.output_filename)}`
+    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i #{quote_for_exec(input_filename)} -threads 2 -target ntsc-dv #{quote_for_exec(job.output_filename)}`
     unless File.exists?(job.output_filename)
       msg "  Error encoding #{job}"
       job.state = :errored
