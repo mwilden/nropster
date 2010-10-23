@@ -8,7 +8,7 @@ require 'nropster'
 require 'msg'
 require 'lll'
 
-VERSION_S = 'nropster 1.2: Download shows from TiVo and encode to DV'
+VERSION_S = 'nropster 1.3: Download shows from TiVo and encode to DV'
 
 def read_config_file(options)
   inclusion_exclusion_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))
