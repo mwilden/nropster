@@ -8,8 +8,8 @@ class Nropster
     @destination_directory = options[:destination_directory]
     @edited_directory = options[:edited_directory]
     @work_directory = options[:work_directory]
-    @inclusion_regexp = Regexp.new(options[:inclusion_regexp]) if options[:inclusion_regexp]
-    @exclusion_regexp = Regexp.new(options[:exclusion_regexp]) if options[:exclusion_regexp]
+    @inclusion_regexp = Regexp.new(options[:inclusion_regexp], Regexp::IGNORECASE) if options[:inclusion_regexp]
+    @exclusion_regexp = Regexp.new(options[:exclusion_regexp], Regexp::IGNORECASE) if options[:exclusion_regexp]
     @download_now_playing = options[:download_now_playing]
     @force_download_existing = options[:force_download_existing]
     @tivo = TiVo.new(@work_directory)
