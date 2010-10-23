@@ -36,10 +36,41 @@ class Nropster
   private
 
   def initialize_show_lists
-    @now_playing_keep = get_now_playing.select {|show| show.keep? }
-    downloadable = @now_playing_keep.select {|show| download? show}
-    @to_download, @already_downloaded = downloadable.partition do |show|
-      not already_downloaded?(show) or @force_download_existing
+    @now_playing_keep = get_now_playing.select {|show| show.keep? }.sort {|a,b| a.time_captured <=> b.time_captured}
+    group @now_playing_keep
+  end
+
+  def group shows
+    @groups = {}
+    @groups[:excluded] = []
+    @groups[:included] = []
+    @groups[:to_download] = []
+    @groups[:already_downloaded] = []
+    shows.each do |show|
+      if !@inclusion_regexp && !@exclusion_regexp
+        if already(downloaded?(show))
+          @groups[:already_downloaded] << show
+        else
+          @groups[:to_download] << show
+        end
+      else
+        potentially_downloadable = nil
+        if @inclusion_regexp && show.full_title =~ @inclusion_regexp
+          potentially_downloadable = show
+          @groups[:included] << show
+        elsif @exclusion_regexp && show.full_title =~ @exclusion_regexp
+          @groups[:excluded] << show
+        else
+          potentially_downloadable = show
+        end
+        if potentially_downloadable
+          if already_downloaded?(show)
+            @groups[:already_downloaded] << show
+          else
+            @groups[:to_download] << show
+          end
+        end
+      end
     end
   end
 
@@ -49,7 +80,7 @@ class Nropster
   end
 
   def anything_to_do?
-    @to_download.any?
+    @groups[:to_download].any?
   end
 
   def already_downloaded?(show)
@@ -67,10 +98,18 @@ class Nropster
   def show_lists
     show_header
     msg "To Download:"
-    @to_download.each {|show| msg show.to_s}
-    unless @already_downloaded.empty?
+    @groups[:to_download].each {|show| msg show.to_s}
+    unless @groups[:already_downloaded].empty?
       msg "Already Downloaded:"
-      @already_downloaded.each {|show| msg show.to_s}
+      @groups[:already_downloaded].each {|show| msg show.to_s}
+    end
+    unless @groups[:included].empty?
+      msg "Included:"
+      @groups[:included].each {|show| msg show.to_s}
+    end
+    unless @groups[:excluded].empty?
+      msg "Excluded:"
+      @groups[:excluded].each {|show| msg show.to_s}
     end
     puts
   end
@@ -91,7 +130,7 @@ class Nropster
 
   def execute_jobs
     started_at = Time.now
-    @jobs = @to_download.map {|show| Job.new(show)}
+    @jobs = @groups[:to_download].map {|show| Job.new(show)}
     download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory, @tivo.mak).perform}
     encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     [download_worker, encode_worker].each {|thread| thread.join}
