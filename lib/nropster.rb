@@ -17,7 +17,7 @@ class Nropster
     initialize_show_lists
 
   rescue Timeout::Error
-    msg "TiVo web server is down"
+    error_msg "TiVo web server is down"
     exit 1
   end
 
@@ -223,10 +223,10 @@ class Nropster::DownloadWorker < Nropster::Worker
     end
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
-      msg "  Server busy trying to download #{job}"
+      error_msg "  Server busy trying to download #{job}"
       job.state = :to_download
     else
-      msg "  Error downloading #{job}: #{err.to_s}"
+      error_msg "  Error downloading #{job}: #{err.to_s}"
       job.state = :errored
     end
     File.delete job.output_filename
@@ -260,7 +260,7 @@ class Nropster::EncodeWorker < Nropster::Worker
     started_at = Time.now
     `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i #{quote_for_exec(input_filename)} -threads 2 -croptop 4 -target ntsc-dv #{quote_for_exec(job.output_filename)}`
     unless File.exists?(job.output_filename)
-      msg "  Error encoding #{job}"
+      error_msg "  Error encoding #{job}"
       job.state = :errored
       return
     end
