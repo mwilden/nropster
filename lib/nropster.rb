@@ -140,15 +140,15 @@ class Nropster
   def show_results
     puts
     show_results_in_state(:encoded, "Downloaded and Encoded")
-    show_results_in_state(:errored, "Errors")
+    show_results_in_state(:errored, "Errors", true)
     msg "Total #{Formatter.duration(@duration)}"
     puts
   end
 
-  def show_results_in_state(state, header)
+  def show_results_in_state state, header, errors = false
     jobs = @jobs.select {|job| job.state == state }
     unless jobs.empty?
-      msg header + ':'
+      send errors ? :error_msg : :msg, header + ':'
       for job in jobs do
         job.show_complete_statistics
       end
