@@ -13,18 +13,14 @@ class TiVo
     load_now_playing
   end
 
-  def download_show show, &block
-    Downloader.new(show.url, mak).download &block
-  end
-
   def mak
     8185711423
   end
 
   private
   def download_now_playing
-    downloader = Downloader.new('https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes', mak)
-    downloader.download_to_file(@now_playing_filename)
+    downloader = Downloader.new 'https://10.0.1.7/TiVoConnect?Command=QueryContainer&Container=/NowPlaying&Recurse=Yes', mak
+    downloader.download_to_file @now_playing_filename
   end
 
   def load_now_playing
@@ -41,7 +37,7 @@ class TiVo
 end
 
 class TiVo::Show
-  attr_reader :size, :url, :title, :episode_title, :time_captured, :duration
+  attr_reader :size, :url, :title, :episode_title, :time_captured, :duration, :download_duration
 
   def initialize tivo, item
     @tivo = tivo
@@ -54,12 +50,14 @@ class TiVo::Show
     @duration = item.css('Details Duration').text.to_i / 1000
   end
 
-  def keep?
-    @keep
+  def download output
+    downloader = Downloader.new
+    downloader.download @tivo.mak, url, full_title, size, output
+    @download_duration = downloader.duration
   end
 
-  def download &block
-    @tivo.download_show self, &block
+  def keep?
+    @keep
   end
 
   def full_title
@@ -131,3 +129,44 @@ class TiVo::Downloader
   end
 
 end
+
+class TiVo::Show::Downloader
+  attr_reader :duration
+
+  def download mak, url, title, size, output
+    started_at = Time.now
+    progress_bar = Console::ProgressBar.new title, size 
+    IO.popen(%Q[tivodecode -o #{quote_for_exec(output)} -m "#{mak}" -], 'wb') do |tivodecode|
+      TiVo::Downloader.new(url, mak).download do |chunk|
+        tivodecode << chunk
+        progress_bar.inc chunk.length
+      end
+    end
+    progress_bar.finish
+    @duration = Time.now - started_at
+  rescue Exception => err
+    File.delete(output) if File.exist? output
+    if err.message =~ /@reason_phrase="Server Busy"/
+      raise TiVo::ServerBusyError
+    else
+      raise TiVo::Error.new err
+    end
+  end
+
+  def quote_for_exec str
+    with_escaped_apostrophes = str.gsub /'/, "'\\\\''"
+    "'#{with_escaped_apostrophes}'"
+  end
+end
+
+class TiVo::ServerBusyError < StandardError; end
+
+class TiVo::Error < StandardError
+  def initialize inner_exception
+    @inner_exception = inner_exception
+  end
+  def to_s
+    @inner_exception.to_s
+  end
+end
+

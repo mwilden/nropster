@@ -2,6 +2,7 @@ require 'progressbar'
 require 'tivo'
 require 'msg'
 require 'encoder'
+require 'lll'
 
 class Nropster
   def initialize(options)
@@ -133,7 +134,7 @@ class Nropster
   def execute_jobs
     started_at = Time.now
     @jobs = @groups[:to_download].map {|show| Job.new(show)}
-    download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory, @tivo.mak).perform}
+    download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
     encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     [download_worker, encode_worker].each {|thread| thread.join}
     @duration = Time.now - started_at
@@ -157,14 +158,6 @@ class Nropster
     end
   end
 
-  def download? show
-    return true unless @inclusion_regexp || @exclusion_regexp
-    if @inclusion_regexp
-      show.full_title =~ @inclusion_regexp
-    else
-      not show.full_title =~ @exclusion_regexp
-    end
-  end
 end
 
 class Nropster::Job
@@ -213,15 +206,10 @@ class Nropster::Worker
     @output_directory = output_directory
   end
 
-  def quote_for_exec str
-    with_escaped_apostrophes = str.gsub /'/, "'\\\\''"
-    "'#{with_escaped_apostrophes}'"
-  end
 end
 
 class Nropster::DownloadWorker < Nropster::Worker
-  def initialize jobs, output_directory, mak
-    @mak = mak
+  def initialize jobs, output_directory
     super jobs, output_directory
   end
 
@@ -247,32 +235,21 @@ class Nropster::DownloadWorker < Nropster::Worker
   def download job
     job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
     msg "Downloading #{job}"
-    IO.popen(%Q[tivodecode -o #{quote_for_exec(job.output_filename)} -m "#{@mak}" -], 'wb') do |tivodecode|
-      progress_bar = Console::ProgressBar.new(job.show.full_title, job.show.size)
-      job.state = :downloading
-      started_at = Time.now
-      job.show.download do |chunk|
-        tivodecode << chunk
-        progress_bar.inc(chunk.length)
-      end
-      ended_at = Time.now
-      job.state = :downloaded
-      progress_bar.finish
-      msg "  Finished downloading #{job}"
-      job.download_duration = ended_at - started_at
-      job.display_statistics(:download_duration, :download_rate)
-    end
-  rescue Exception => err
-    if err.message =~ /@reason_phrase="Server Busy"/
-      error_msg "  Server busy trying to download #{job}"
-      job.state = :to_download
-    else
-      error_msg "  Error downloading #{job}: #{err.to_s}"
-      job.state = :errored
-    end
-    File.delete job.output_filename
-  end
+    job.state = :downloading
 
+    job.show.download job.output_filename
+
+    msg "  Finished downloading #{job}"
+    job.state = :downloaded
+    job.download_duration = job.show.download_duration
+    job.display_statistics(:download_duration, :download_rate)
+  rescue TiVo::ServerBusyError
+    error_msg "  Server busy trying to download #{job}"
+    job.state = :to_download
+  rescue TiVo::Error => err
+    error_msg "  Error downloading #{job}: #{err}"
+    job.state = :errored
+  end
 end
 
 class Nropster::EncodeWorker < Nropster::Worker
