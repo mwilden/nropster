@@ -65,9 +65,10 @@ class Nropster
           potentially_downloadable = show
         end
         if potentially_downloadable
-          if already_downloaded?(show)
+          if already_downloaded = already_downloaded?(show)
             @groups[:already_downloaded] << show
-          else
+          end
+          if !already_downloaded || @force_download_existing
             @groups[:to_download] << show
           end
         end
