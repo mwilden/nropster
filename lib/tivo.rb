@@ -13,6 +13,10 @@ class TiVo
     load_now_playing
   end
 
+  def downloader
+    TiVo::Show::Downloader.new mak
+  end
+
   def mak
     8185711423
   end
@@ -37,7 +41,7 @@ class TiVo
 end
 
 class TiVo::Show
-  attr_reader :size, :url, :title, :episode_title, :time_captured, :duration, :download_duration
+  attr_reader :tivo, :keep, :title, :size, :episode_title, :url, :time_captured, :duration
 
   def initialize tivo, item
     @tivo = tivo
@@ -48,50 +52,6 @@ class TiVo::Show
     @url = item.css('Links Content Url').text
     @time_captured = Time.at(item.css('Details CaptureDate').text.to_i(16) + 2)
     @duration = item.css('Details Duration').text.to_i / 1000
-  end
-
-  def download output
-    downloader = Downloader.new
-    downloader.download @tivo.mak, url, full_title, size, output
-    @download_duration = downloader.duration
-  end
-
-  def keep?
-    @keep
-  end
-
-  def full_title
-    return @title if @episode_title.empty?
-    @title + '-' + @episode_title
-  end
-
-  def downloaded_filename
-    filename_root + '.mpg'
-  end
-
-  def encoded_filename
-    filename_root + '.dv'
-  end
-
-  def to_s
-    "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})"
-  end
-
-  private
-  def time_captured_s
-    Formatter.time(@time_captured)
-  end
-
-  def duration_s
-    Formatter.duration(@duration)
-  end
-
-  def size_s
-    Formatter.size(size)
-  end
-
-  def filename_root
-    full_title + ' ' + time_captured_s.gsub(':', '')
   end
 end
 
@@ -133,11 +93,15 @@ end
 class TiVo::Show::Downloader
   attr_reader :duration
 
-  def download mak, url, title, size, output
+  def initialize mak
+    @mak = mak
+  end
+
+  def download url, title, size, output
     started_at = Time.now
     progress_bar = Console::ProgressBar.new title, size 
-    IO.popen(%Q[tivodecode -o #{quote_for_exec(output)} -m "#{mak}" -], 'wb') do |tivodecode|
-      TiVo::Downloader.new(url, mak).download do |chunk|
+    IO.popen(%Q[tivodecode -o #{quote_for_exec(output)} -m "#{@mak}" -], 'wb') do |tivodecode|
+      TiVo::Downloader.new(url, @mak).download do |chunk|
         tivodecode << chunk
         progress_bar.inc chunk.length
       end

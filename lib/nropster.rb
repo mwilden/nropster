@@ -2,7 +2,7 @@ require 'progressbar'
 require 'tivo'
 require 'msg'
 require 'encoder'
-require 'lll'
+require 'show'
 
 class Nropster
   def initialize(options)
@@ -38,7 +38,8 @@ class Nropster
   private
 
   def initialize_show_lists
-    @now_playing_keep = get_now_playing.select {|show| show.keep? }.sort {|a,b| a.time_captured <=> b.time_captured}
+    shows = get_now_playing.map {|show| Show.new show }
+    @now_playing_keep = shows.select {|show| show.keep? }.sort {|a,b| a.time_captured <=> b.time_captured}
     group @now_playing_keep
   end
 
@@ -205,7 +206,6 @@ class Nropster::Worker
     @jobs = jobs
     @output_directory = output_directory
   end
-
 end
 
 class Nropster::DownloadWorker < Nropster::Worker
