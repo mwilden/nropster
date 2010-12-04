@@ -38,7 +38,7 @@ class Nropster
   private
 
   def initialize_show_lists
-    shows = get_now_playing.map {|show| Show.new show }
+    shows = get_now_playing.map {|tivo_show| Show.new tivo_show }
     @now_playing_keep = shows.select {|show| show.keep? }.sort {|a,b| a.time_captured <=> b.time_captured}
     group @now_playing_keep
   end
@@ -102,18 +102,18 @@ class Nropster
   def display_lists
     display_header
     msg "To Download:"
-    @groups[:to_download].each {|show| msg show.to_s}
+    @groups[:to_download].each {|show| msg show.to_s(:long)}
     unless @groups[:already_downloaded].empty?
       msg "Already Downloaded:"
-      @groups[:already_downloaded].each {|show| msg show.to_s}
+      @groups[:already_downloaded].each {|show| msg show.to_s(:long)}
     end
     unless @groups[:included].empty?
       msg "Included:"
-      @groups[:included].each {|show| msg show.to_s}
+      @groups[:included].each {|show| msg show.to_s(:long)}
     end
     unless @groups[:excluded].empty?
       msg "Excluded:"
-      @groups[:excluded].each {|show| msg show.to_s}
+      @groups[:excluded].each {|show| msg show.to_s(:long)}
     end
     puts
   end
@@ -134,7 +134,7 @@ class Nropster
 
   def execute_jobs
     started_at = Time.now
-    @jobs = @groups[:to_download].map {|show| Job.new(show)}
+    @jobs = @groups[:to_download].map {|show| show}
     download_worker = Thread.new {DownloadWorker.new(@jobs, @work_directory).perform}
     encode_worker = Thread.new {EncodeWorker.new(@jobs, @destination_directory).perform}
     [download_worker, encode_worker].each {|thread| thread.join}
@@ -159,46 +159,6 @@ class Nropster
     end
   end
 
-end
-
-class Nropster::Job
-  attr_reader :show
-  attr_accessor :state, :input_filename, :output_filename, :download_duration, :encode_duration
-
-  def initialize show
-    @show = show
-    @state = :to_download
-  end
-
-  def to_s
-    @show.full_title
-  end
-
-  def size
-    @show.size
-  end
-
-  def display_statistics(duration_method, rate_method)
-    msg "    time: #{Formatter.duration(send(duration_method))} " +
-            "size: #{Formatter.size(size)} " +
-            "rate: #{Formatter.size(send(rate_method))}/sec"
-  end
-
-  def display_complete_statistics
-    msg "#{to_s} (#{Formatter.size(size)})"
-    return if @state == :errored
-    msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
-            "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
-  end
-
-  private
-  def download_rate
-    @show.size / @download_duration
-  end
-
-  def encode_rate
-    @show.size / @encode_duration
-  end
 end
 
 class Nropster::Worker
@@ -233,16 +193,15 @@ class Nropster::DownloadWorker < Nropster::Worker
   end
 
   def download job
-    job.output_filename = "#{@output_directory}/#{job.show.downloaded_filename}"
+    job.output_filename = "#{@output_directory}/#{job.downloaded_filename}"
     msg "Downloading #{job}"
     job.state = :downloading
 
-    job.show.download job.output_filename
+    job.download job.output_filename
 
     msg "  Finished downloading #{job}"
     job.state = :downloaded
-    job.download_duration = job.show.download_duration
-    job.display_statistics(:download_duration, :download_rate)
+    job.display_statistics :download_duration, :download_rate
   rescue TiVo::ServerBusyError
     error_msg "  Server busy trying to download #{job}"
     job.state = :to_download
@@ -272,7 +231,7 @@ class Nropster::EncodeWorker < Nropster::Worker
 
   def encode job
     input_filename = job.output_filename
-    job.output_filename = "#{@output_directory}/#{job.show.encoded_filename}"
+    job.output_filename = "#{@output_directory}/#{job.encoded_filename}"
     msg "Encoding #{job}"
     job.state = :encoding
 

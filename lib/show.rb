@@ -1,7 +1,9 @@
 class Show
+  attr_accessor :state, :input_filename, :output_filename, :encode_duration
   attr_reader :size, :url, :title, :episode_title, :time_captured, :duration, :download_duration
 
   def initialize tivo_show
+    @state = :to_download
     @tivo = tivo_show.tivo
     @keep = tivo_show.keep
     @title = tivo_show.title
@@ -16,6 +18,19 @@ class Show
     downloader = @tivo.downloader
     downloader.download url, full_title, size, output
     @download_duration = downloader.duration
+  end
+
+  def display_statistics(duration_method, rate_method)
+    msg "    time: #{Formatter.duration(send(duration_method))} " +
+            "size: #{Formatter.size(size)} " +
+            "rate: #{Formatter.size(send(rate_method))}/sec"
+  end
+
+  def display_complete_statistics
+    msg "#{self} (#{Formatter.size(size)})"
+    return if @state == :errored
+    msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
+            "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
   end
 
   def keep?
@@ -35,11 +50,20 @@ class Show
     filename_root + '.dv'
   end
 
-  def to_s
-    "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})"
+  def to_s format = :short
+    return "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})" if format == :long
+    full_title
   end
 
   private
+  def download_rate
+    size / @download_duration
+  end
+
+  def encode_rate
+    size / @encode_duration
+  end
+
   def time_captured_s
     Formatter.time(@time_captured)
   end
