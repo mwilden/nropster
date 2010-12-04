@@ -1,6 +1,7 @@
 require 'progressbar'
 require 'tivo'
 require 'msg'
+require 'encoder'
 
 class Nropster
   def initialize(options)
@@ -296,19 +297,19 @@ class Nropster::EncodeWorker < Nropster::Worker
     job.output_filename = "#{@output_directory}/#{job.show.encoded_filename}"
     msg "Encoding #{job}"
     job.state = :encoding
-    started_at = Time.now
-    `/Applications/kmttg/ffmpeg/ffmpeg -y -an -i #{quote_for_exec(input_filename)} -threads 2 -croptop 4 -target ntsc-dv #{quote_for_exec(job.output_filename)}`
-    unless File.exists?(job.output_filename)
+
+    encoder = Encoder.new
+    unless encoder.encode input_filename, job.output_filename
       error_msg "  Error encoding #{job}"
       job.state = :errored
       return
     end
-    ended_at = Time.now
+
     File.delete input_filename
     job.state = :encoded
     msg "  Finished encoding #{job}"
-    job.encode_duration = ended_at - started_at
-    job.display_statistics(:encode_duration, :encode_rate)
+    job.encode_duration = encoder.duration
+    job.display_statistics :encode_duration, :encode_rate
   end
 
 end
