@@ -22,14 +22,14 @@ class Nropster
   end
 
   def run
-    show_lists
+    display_lists
     unless anything_to_do?
       puts "Nothing to do"
       puts
     else
       confirm_execution
       execute_jobs
-      show_results
+      display_results
     end
   end
 
@@ -89,14 +89,14 @@ class Nropster
     File.exist?(destination_file) || File.exist?(edited_file)
   end
 
-  def show_header
+  def display_header
     puts
     msg 'Recorded    Len  Title (Size)'
     msg '----------- ---- --------------------------------------------'
   end
 
-  def show_lists
-    show_header
+  def display_lists
+    display_header
     msg "To Download:"
     @groups[:to_download].each {|show| msg show.to_s}
     unless @groups[:already_downloaded].empty?
@@ -137,20 +137,20 @@ class Nropster
     @duration = Time.now - started_at
   end
 
-  def show_results
+  def display_results
     puts
-    show_results_in_state(:encoded, "Downloaded and Encoded")
-    show_results_in_state(:errored, "Errors", true)
+    display_results_in_state(:encoded, "Downloaded and Encoded")
+    display_results_in_state(:errored, "Errors", true)
     msg "Total #{Formatter.duration(@duration)}"
     puts
   end
 
-  def show_results_in_state state, header, errors = false
+  def display_results_in_state state, header, errors = false
     jobs = @jobs.select {|job| job.state == state }
     unless jobs.empty?
       send errors ? :error_msg : :msg, header + ':'
       for job in jobs do
-        job.show_complete_statistics
+        job.display_complete_statistics
       end
     end
   end
@@ -182,13 +182,13 @@ class Nropster::Job
     @show.size
   end
 
-  def show_statistics(duration_method, rate_method)
+  def display_statistics(duration_method, rate_method)
     msg "    time: #{Formatter.duration(send(duration_method))} " +
             "size: #{Formatter.size(size)} " +
             "rate: #{Formatter.size(send(rate_method))}/sec"
   end
 
-  def show_complete_statistics
+  def display_complete_statistics
     msg "#{to_s} (#{Formatter.size(size)})"
     return if @state == :errored
     msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
@@ -258,7 +258,7 @@ class Nropster::DownloadWorker < Nropster::Worker
       progress_bar.finish
       msg "  Finished downloading #{job}"
       job.download_duration = ended_at - started_at
-      job.show_statistics(:download_duration, :download_rate)
+      job.display_statistics(:download_duration, :download_rate)
     end
   rescue Exception => err
     if err.message =~ /@reason_phrase="Server Busy"/
@@ -308,7 +308,7 @@ class Nropster::EncodeWorker < Nropster::Worker
     job.state = :encoded
     msg "  Finished encoding #{job}"
     job.encode_duration = ended_at - started_at
-    job.show_statistics(:encode_duration, :encode_rate)
+    job.display_statistics(:encode_duration, :encode_rate)
   end
 
 end
