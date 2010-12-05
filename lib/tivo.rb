@@ -100,7 +100,10 @@ class TiVo::Show::Downloader
   def download url, title, size, output
     started_at = Time.now
     progress_bar = Console::ProgressBar.new title, size 
-    IO.popen(%Q[tivodecode -o #{quote_for_exec(output)} -m "#{@mak}" -], 'wb') do |tivodecode|
+    work = output + '.work'
+    File.delete output if File.exists? output
+    File.delete work if File.exists? work
+    IO.popen(%Q[tivodecode -o #{quote_for_exec(work)} -m "#{@mak}" -], 'wb') do |tivodecode|
       TiVo::Downloader.new(url, @mak).download do |chunk|
         tivodecode << chunk
         progress_bar.inc chunk.length
@@ -108,8 +111,9 @@ class TiVo::Show::Downloader
     end
     progress_bar.finish
     @duration = Time.now - started_at
+    FileUtils.move work, output if File.exists? work
   rescue Exception => err
-    File.delete(output) if File.exist? output
+    File.delete work if File.exist? work
     if err.message =~ /@reason_phrase="Server Busy"/
       raise TiVo::ServerBusyError
     else
