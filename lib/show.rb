@@ -1,6 +1,6 @@
 class Show
-  attr_accessor :state, :input_filename, :output_filename, :encode_duration
-  attr_reader :size, :url, :title, :episode_title, :time_captured, :duration, :download_duration
+  attr_accessor :state
+  attr_reader :time_captured
 
   def initialize tivo_show, destination_directory, edited_directory, work_directory
     @state = :to_download
@@ -12,28 +12,62 @@ class Show
     @url = tivo_show.url
     @time_captured = tivo_show.time_captured
     @duration = tivo_show.duration
-    @destination_directory = destination_directory
-    @edited_directory = edited_directory
-    @work_directory = work_directory
+    make_filepaths destination_directory, edited_directory, work_directory
   end
 
-  def download output
+  def already_downloaded?
+    [@destination_filepath, @edited_filepath].any? {|file| File.exist? file}
+  end
+
+  def download
+    display_msg "Downloading #{self}"
+    @state = :downloading
+
     downloader = @tivo.downloader
-    downloader.download url, full_title, size, output
+    downloader.download @url, full_title, @size, @downloaded_filepath
     @download_duration = downloader.duration
+
+    @state = :downloaded
+    display_msg "  Finished downloading #{self}"
+    display_statistics @download_duration, download_rate
+
+  rescue TiVo::ServerBusyError
+    display_error_msg "  Server busy trying to download #{self}"
+    @state = :to_download
+  rescue TiVo::Error => err
+    display_error_msg "  Error downloading #{self}: #{err}"
+    @state = :errored
   end
 
-  def display_statistics(duration_method, rate_method)
-    display_msg "    time: #{Formatter.duration(send(duration_method))} " +
-            "size: #{Formatter.size(size)} " +
-            "rate: #{Formatter.size(send(rate_method))}/sec"
+  def encode
+    display_msg "Encoding #{self}"
+    @state = :encoding
+
+    encoder = Encoder.new
+    unless encoder.encode @downloaded_filepath, @destination_filepath
+      display_error_msg "  Error encoding #{self}"
+      @state = :errored
+      return
+    end
+    @encode_duration = encoder.duration
+
+    File.delete @downloaded_filepath
+    @state = :encoded
+    display_msg "  Finished encoding #{self}"
+    display_statistics @encode_duration, encode_rate
+  end
+
+  def display_statistics duration, rate
+    display_msg "    time: #{Formatter.duration(duration)} " +
+            "size: #{Formatter.size(@size)} " +
+            "rate: #{Formatter.size(rate)}/sec"
   end
 
   def display_complete_statistics
-    display_msg "#{self} (#{Formatter.size(size)})"
+    display_msg "#{self} (#{Formatter.size(@size)})"
     return if @state == :errored
-    display_msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
-            "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
+    display_msg "  download: #{Formatter.duration(@download_duration)} (#{Formatter.size(@size / @download_duration)}/sec) " +
+            "encode: #{Formatter.duration(@encode_duration)} (#{Formatter.size(@size / @encode_duration)}/sec)"
   end
 
   def keep?
@@ -45,38 +79,36 @@ class Show
     @title + '-' + @episode_title
   end
 
-  def downloaded_filename
-    filename_root + '.mpg'
-  end
-
-  def encoded_filename
-    filename_root + '.dv'
-  end
-
   def to_s format = :short
     return "#{time_captured_s} #{duration_s} #{full_title} (#{size_s})" if format == :long
     full_title
   end
 
   private
+  def make_filepaths destination_directory, edited_directory, work_directory
+    @downloaded_filepath = work_directory + '/' + filename_root + '.mpg'
+    @edited_filepath = edited_directory + '/' + filename_root + '.dv'
+    @destination_filepath = destination_directory + '/' + filename_root + '.dv'
+  end
+
   def download_rate
-    size / @download_duration
+    @size / @download_duration
   end
 
   def encode_rate
-    size / @encode_duration
+    @size / @encode_duration
   end
 
   def time_captured_s
-    Formatter.time(@time_captured)
+    Formatter.time @time_captured
   end
 
   def duration_s
-    Formatter.duration(@duration)
+    Formatter.duration @duration
   end
 
   def size_s
-    Formatter.size(size)
+    Formatter.size @size
   end
 
   def filename_root

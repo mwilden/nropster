@@ -24,12 +24,12 @@ class Nropster
       puts "Nothing to do"
       puts
     else
-      confirm_execution
-      download_shows
+      confirm
+      download
       display_results
     end
   rescue Timeout::Error
-    error_msg "TiVo web server is down"
+    display_error_msg "TiVo web server is down"
     exit 1
   end
 
@@ -53,7 +53,7 @@ class Nropster
     @groups[:already_downloaded] = []
     shows.each do |show|
       if !@inclusion_regexp && !@exclusion_regexp
-        if already(downloaded?(show))
+        if show.already_downloaded?
           @groups[:already_downloaded] << show
         else
           @groups[:to_download] << show
@@ -69,7 +69,7 @@ class Nropster
           potentially_downloadable = show
         end
         if potentially_downloadable
-          if already_downloaded = already_downloaded?(show)
+          if already_downloaded = show.already_downloaded?
             @groups[:already_downloaded] << show
           end
           if !already_downloaded || @force_download_existing
@@ -82,17 +82,11 @@ class Nropster
 
   def get_now_playing
     display_msg "Downloading Now Playing list" if @download_now_playing
-    @tivo.now_playing(@download_now_playing)
+    @tivo.now_playing @download_now_playing
   end
 
   def anything_to_do?
     @groups[:to_download].any?
-  end
-
-  def already_downloaded?(show)
-    destination_file = "#{@destination_directory}/#{show.encoded_filename}"
-    edited_file = "#{@edited_directory}/#{show.encoded_filename}"
-    File.exist?(destination_file) || File.exist?(edited_file)
   end
 
   def display_header
@@ -103,24 +97,21 @@ class Nropster
 
   def display_lists
     display_header
-    display_msg "To Download:"
-    @groups[:to_download].each {|show| display_msg show.to_s(:long)}
-    unless @groups[:already_downloaded].empty?
-      display_msg "Already Downloaded:"
-      @groups[:already_downloaded].each {|show| display_msg show.to_s(:long)}
-    end
-    unless @groups[:included].empty?
-      display_msg "Included:"
-      @groups[:included].each {|show| display_msg show.to_s(:long)}
-    end
-    unless @groups[:excluded].empty?
-      display_msg "Excluded:"
-      @groups[:excluded].each {|show| display_msg show.to_s(:long)}
-    end
+    display_list 'To Download:', :to_download, true
+    display_list "Already Downloaded:", :already_downloaded
+    display_list "Included:", :included
+    display_list "Excluded:", :excluded
     puts
   end
 
-  def confirm_execution
+  def display_list header, state, show_if_empty = false
+    shows = @groups[state]
+    return if shows.empty? unless show_if_empty
+    display_msg header
+    shows.each {|show| display_msg show.to_s(:long)}
+  end
+
+  def confirm
     if @confirm
       print "Press Enter to download or ^C to cancel: "
       begin
@@ -134,7 +125,7 @@ class Nropster
     end
   end
 
-  def download_shows
+  def download
     started_at = Time.now
     @shows = @groups[:to_download]
     download_worker = Thread.new {DownloadWorker.new(@shows, @work_directory).perform}
@@ -154,7 +145,7 @@ class Nropster
   def display_results_in_state state, header
     shows = @shows.select {|show| show.state == state }
     unless shows.empty?
-      send state == :errored ? :error_msg : :display_msg, header + ':'
+      send state == :errored ? :display_error_msg : :display_msg, header + ':'
       for show in shows do
         show.display_complete_statistics
       end
@@ -181,31 +172,13 @@ class Nropster::DownloadWorker < Nropster::Worker
           if just_downloaded_file
             sleep 3
           end
-          download show
+          show.download
           just_downloaded_file = true
         end
       end
       break unless anything_to_be_done
       sleep 1
     end
-  end
-
-  def download show
-    show.output_filename = "#{@output_directory}/#{show.downloaded_filename}"
-    display_msg "Downloading #{show}"
-    show.state = :downloading
-
-    show.download show.output_filename
-
-    display_msg "  Finished downloading #{show}"
-    show.state = :downloaded
-    show.display_statistics :download_duration, :download_rate
-  rescue TiVo::ServerBusyError
-    error_msg "  Server busy trying to download #{show}"
-    show.state = :to_download
-  rescue TiVo::Error => err
-    error_msg "  Error downloading #{show}: #{err}"
-    show.state = :errored
   end
 end
 
@@ -217,34 +190,10 @@ class Nropster::EncodeWorker < Nropster::Worker
         if not [:encoded, :errored].include? show.state
           anything_to_be_done = true
         end
-
-        if show.state == :downloaded
-          encode show
-        end
+        show.encode if show.state == :downloaded
       end
       break unless anything_to_be_done
-      sleep(1)
+      sleep 1
     end
   end
-
-  def encode show
-    input_filename = show.output_filename
-    show.output_filename = "#{@output_directory}/#{show.encoded_filename}"
-    display_msg "Encoding #{show}"
-    show.state = :encoding
-
-    encoder = Encoder.new
-    unless encoder.encode input_filename, show.output_filename
-      error_msg "  Error encoding #{show}"
-      show.state = :errored
-      return
-    end
-
-    File.delete input_filename
-    show.state = :encoded
-    display_msg "  Finished encoding #{show}"
-    show.encode_duration = encoder.duration
-    show.display_statistics :encode_duration, :encode_rate
-  end
-
 end
