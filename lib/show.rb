@@ -91,8 +91,12 @@ class Show
   end
 
   def display_complete_statistics
-    display_msg "#{self} (#{Formatter.size(@size)})"
-    return if @state == :errored
+    entry = "#{self} (#{Formatter.size(@size)})"
+    if @state == :errored
+      display_error_msg entry
+      return
+    end
+    display_msg entry
     display_msg "  download: #{Formatter.duration(@download_duration)} (#{Formatter.size(@size / @download_duration)}/sec) " +
             "encode: #{Formatter.duration(@encode_duration)} (#{Formatter.size(@size / @encode_duration)}/sec)"
   end
