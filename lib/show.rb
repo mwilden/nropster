@@ -1,9 +1,8 @@
 class Show
-  attr_accessor :state
+  attr_accessor :state, :specifically_included
   attr_reader :time_captured
 
   def initialize tivo_show, destination_directory, edited_directory, work_directory
-    @state = :to_download
     @tivo = tivo_show.tivo
     @keep = tivo_show.keep
     @title = tivo_show.title
@@ -13,6 +12,34 @@ class Show
     @time_captured = tivo_show.time_captured
     @duration = tivo_show.duration
     make_filepaths destination_directory, edited_directory, work_directory
+  end
+
+  def set_initial_state inclusion_regexp, exclusion_regexp, force_download_existing
+    if already_downloaded? && !force_download_existing
+      @state = :done
+    else
+      @state = test_regexps inclusion_regexp, exclusion_regexp
+      if @state == :included
+        @state = :to_download
+        @specifically_included = true
+      end
+    end
+  end
+
+  def anything_to_do?
+    @state == :to_download
+  end
+
+  def ready_to_download?
+    @state == :to_download
+  end
+
+  def needs_encoding?
+    [:to_download, :downloading, :downloaded].include? state
+  end
+
+  def ready_to_encode?
+    state == :downloaded
   end
 
   def already_downloaded?
@@ -52,7 +79,7 @@ class Show
     @encode_duration = encoder.duration
 
     File.delete @downloaded_filepath
-    @state = :encoded
+    @state = :done
     display_msg "  Finished encoding #{self}"
     display_statistics @encode_duration, encode_rate
   end
@@ -85,6 +112,18 @@ class Show
   end
 
   private
+  def test_regexps inclusion_regexp, exclusion_regexp
+    if inclusion_regexp && full_title =~ inclusion_regexp
+      :included
+    elsif inclusion_regexp && full_title !=~ inclusion_regexp
+      :not_included
+    elsif exclusion_regexp && full_title =~ exclusion_regexp
+      :excluded
+    else
+      :to_download
+    end
+  end
+
   def make_filepaths destination_directory, edited_directory, work_directory
     @downloaded_filepath = work_directory + '/' + filename_root + '.mpg'
     @edited_filepath = edited_directory + '/' + filename_root + '.dv'
@@ -113,6 +152,30 @@ class Show
 
   def filename_root
     full_title + ' ' + time_captured_s.gsub(':', '')
+  end
+end
+
+class Shows < Array
+  def initialize shows
+    concat shows
+  end
+  def anything_to_do?
+    any? {|show| show.anything_to_do?}
+  end
+  def excluded
+    select {|show| show.state == :excluded}
+  end
+  def included
+    select {|show| show.specifically_included}
+  end
+  def not_included
+    select {|show| show.state == :not_included}
+  end
+  def to_download
+    select {|show| show.ready_to_download?}
+  end
+  def already_downloaded
+    select {|show| show.already_downloaded?}
   end
 end
 
