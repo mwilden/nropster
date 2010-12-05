@@ -11,6 +11,7 @@ class Show
     @url = tivo_show.url
     @time_captured = tivo_show.time_captured
     @duration = tivo_show.duration
+    @download_duration = @encode_duration = 0
     make_filepaths destination_directory, edited_directory, work_directory
   end
 
@@ -23,11 +24,14 @@ class Show
         @state = :to_download
         @specifically_included = true
       end
+      if @state == :to_download && download_exists?
+        @state = :downloaded
+      end
     end
   end
 
   def anything_to_do?
-    @state == :to_download
+    [:to_download, :downloaded].include? @state
   end
 
   def ready_to_download?
@@ -44,6 +48,10 @@ class Show
 
   def already_downloaded?
     [@destination_filepath, @edited_filepath].any? {|file| File.exist? file}
+  end
+
+  def download_exists?
+    File.exist?(@downloaded_filepath) && !File.exist?(@destination_filepath)
   end
 
   def download
@@ -96,8 +104,8 @@ class Show
       return
     end
     display_msg entry
-    display_msg "  download: #{Formatter.duration(@download_duration)} (#{Formatter.size(@size / @download_duration)}/sec) " +
-            "encode: #{Formatter.duration(@encode_duration)} (#{Formatter.size(@size / @encode_duration)}/sec)"
+    display_msg "  download: #{Formatter.duration(@download_duration)} (#{Formatter.ratio_size(@size,  @download_duration)}/sec) " +
+            "encode: #{Formatter.duration(@encode_duration)} (#{Formatter.ratio_size(@size, @encode_duration)}/sec)"
   end
 
   def keep?
@@ -134,10 +142,12 @@ class Show
   end
 
   def download_rate
+    return 0 unless @download_duration && @download_duration != 0
     @size / @download_duration
   end
 
   def encode_rate
+    return 0 unless @encode_duration && @encode_duration != 0
     @size / @encode_duration
   end
 
@@ -179,6 +189,9 @@ class Shows < Array
   end
   def already_downloaded
     select {|show| show.already_downloaded?}
+  end
+  def to_encode
+    select {|show| show.state == :downloaded}
   end
 end
 

@@ -60,16 +60,17 @@ class Nropster
   def display_lists
     display_header
     display_list "Included:", :included
-    display_list 'To Download:', :to_download, true
+    display_list 'To Download:', :to_download
+    display_list 'To Encode:', :to_encode
     display_list "Already Downloaded:", :already_downloaded
     display_list "Excluded:", :excluded
     display_list "Not Included:", :not_included
     puts
   end
 
-  def display_list header, state, show_if_empty = false
+  def display_list header, state
     shows = @shows.send state
-    return if shows.empty? unless show_if_empty
+    return if shows.empty?
     display_msg header
     shows.each {|show| display_msg show.to_s(:long)}
   end
