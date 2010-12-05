@@ -78,7 +78,6 @@ class Show
     end
     @encode_duration = encoder.duration
 
-    File.delete @downloaded_filepath
     @state = :done
     display_msg "  Finished encoding #{self}"
     display_statistics @encode_duration, encode_rate
