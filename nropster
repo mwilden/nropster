@@ -64,7 +64,7 @@ def parse_options
     options[:work_directory] = "/tmp"
 
     opts.on('-v', '--version', 'Show version') do
-      msg VERSION_S
+      display_msg VERSION_S
       exit 1
     end
   end
@@ -72,7 +72,7 @@ def parse_options
   begin
     optparse.parse!
   rescue OptionParser::InvalidOption => ex
-    msg ex.message
+    display_msg ex.message
     puts optparse
     exit 1
   end

@@ -2,7 +2,7 @@ class Show
   attr_accessor :state, :input_filename, :output_filename, :encode_duration
   attr_reader :size, :url, :title, :episode_title, :time_captured, :duration, :download_duration
 
-  def initialize tivo_show
+  def initialize tivo_show, destination_directory, edited_directory, work_directory
     @state = :to_download
     @tivo = tivo_show.tivo
     @keep = tivo_show.keep
@@ -12,6 +12,9 @@ class Show
     @url = tivo_show.url
     @time_captured = tivo_show.time_captured
     @duration = tivo_show.duration
+    @destination_directory = destination_directory
+    @edited_directory = edited_directory
+    @work_directory = work_directory
   end
 
   def download output
@@ -21,15 +24,15 @@ class Show
   end
 
   def display_statistics(duration_method, rate_method)
-    msg "    time: #{Formatter.duration(send(duration_method))} " +
+    display_msg "    time: #{Formatter.duration(send(duration_method))} " +
             "size: #{Formatter.size(size)} " +
             "rate: #{Formatter.size(send(rate_method))}/sec"
   end
 
   def display_complete_statistics
-    msg "#{self} (#{Formatter.size(size)})"
+    display_msg "#{self} (#{Formatter.size(size)})"
     return if @state == :errored
-    msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
+    display_msg "  download: #{Formatter.duration(download_duration)} (#{Formatter.size(size / download_duration)}/sec) " +
             "encode: #{Formatter.duration(encode_duration)} (#{Formatter.size(size / encode_duration)}/sec)"
   end
 
