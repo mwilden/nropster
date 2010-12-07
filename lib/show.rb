@@ -17,7 +17,7 @@ class Show
 
   def set_initial_state inclusion_regexp, exclusion_regexp, force_download_existing
     if already_downloaded? && !force_download_existing
-      @state = :done
+      @state = :already_downloaded
     else
       @state = test_regexps inclusion_regexp, exclusion_regexp
       if @state == :included
