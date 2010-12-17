@@ -41,7 +41,7 @@ class TiVo
 end
 
 class TiVo::Show
-  attr_reader :tivo, :keep, :title, :size, :episode_title, :url, :time_captured, :duration
+  attr_reader :tivo, :keep, :title, :size, :episode_title, :url, :time_captured, :duration, :being_watched
 
   def initialize tivo, item
     @tivo = tivo
@@ -52,6 +52,7 @@ class TiVo::Show
     @url = item.css('Links Content Url').text
     @time_captured = Time.at(item.css('Details CaptureDate').text.to_i(16) + 2)
     @duration = item.css('Details Duration').text.to_i / 1000
+    @being_watched = item.css('Details ByteOffset').text.to_i != 0
   end
 end
 

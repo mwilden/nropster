@@ -62,6 +62,7 @@ class Nropster
     display_list "Included:", :included
     display_list 'To Download:', :to_download
     display_list 'To Encode:', :to_encode
+    display_list "Being Watched", :being_watched
     display_list "Already Downloaded:", :already_downloaded
     display_list "Excluded:", :excluded
     display_list "Not Included:", :not_included

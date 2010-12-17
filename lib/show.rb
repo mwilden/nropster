@@ -12,6 +12,7 @@ class Show
     @time_captured = tivo_show.time_captured
     @duration = tivo_show.duration
     @download_duration = @encode_duration = 0
+    @being_watched = tivo_show.being_watched
     make_filepaths destination_directory, edited_directory, work_directory
   end
 
@@ -24,8 +25,12 @@ class Show
         @state = :to_download
         @specifically_included = true
       end
-      if @state == :to_download && download_exists?
-        @state = :downloaded
+      if @state == :to_download
+        if download_exists?
+          @state = :downloaded
+        elsif @being_watched
+          @state = :being_watched
+        end
       end
     end
   end
@@ -174,6 +179,9 @@ class Shows < Array
   end
   def anything_to_do?
     any? {|show| show.anything_to_do?}
+  end
+  def being_watched
+    select {|show| show.state == :being_watched}
   end
   def excluded
     select {|show| show.state == :excluded}
