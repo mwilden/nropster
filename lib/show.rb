@@ -73,9 +73,11 @@ class Show
 
   rescue TiVo::ServerBusyError
     display_error_msg "  Server busy trying to download #{self}"
+    @error = 'Server busy'
     @state = :to_download
   rescue TiVo::Error => err
     display_error_msg "  Error downloading #{self}: #{err}"
+    @error = err.to_s
     @state = :errored
   end
 
@@ -87,6 +89,7 @@ class Show
     unless encoder.encode @downloaded_filepath, @destination_filepath
       display_error_msg "  Error encoding #{self}"
       @state = :errored
+      @error = 'Encoding error'
       return
     end
     @encode_duration = encoder.duration
@@ -105,6 +108,7 @@ class Show
   def display_complete_statistics
     entry = "#{self} (#{Formatter.size(@size)})"
     if @state == :errored
+      entry << ": #{@error}"
       display_error_msg entry
       return
     end
