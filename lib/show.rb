@@ -20,7 +20,7 @@ class Show
     if already_downloaded? && !force_download_existing
       @state = :already_downloaded
     else
-      @state = test_regexps inclusion_regexp, exclusion_regexp
+      @state = test_regexps(inclusion_regexp, exclusion_regexp) || :to_download
       if @state == :included
         @state = :to_download
         @specifically_included = true
@@ -139,8 +139,6 @@ class Show
       :not_included
     elsif exclusion_regexp && full_title =~ exclusion_regexp
       :excluded
-    else
-      :to_download
     end
   end
 
