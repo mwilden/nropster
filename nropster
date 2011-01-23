@@ -32,11 +32,15 @@ def parse_options
     end
 
     opts.on('-i', '--include REGEXP', 'Regexp of show names to include') do |regexp|
-      options[:inclusion_regexp] = regexp
+      options[:inclusion_regexp] ||= ''
+      options[:inclusion_regexp] << '|' if options[:inclusion_regexp].size > 0
+      options[:inclusion_regexp] << "(#{regexp})"
     end
 
     opts.on('-x', '--exclude REGEXP', 'Regexp of show names to exclude') do |regexp|
-      options[:exclusion_regexp] = regexp
+      options[:exclusion_regexp] ||= ''
+      options[:exclusion_regexp] << '|' if options[:exclusion_regexp].size > 0
+      options[:exclusion_regexp] << "(#{regexp})"
     end
 
     options[:force_download_existing] = false
