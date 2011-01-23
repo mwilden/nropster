@@ -51,21 +51,15 @@ class Nropster
     @tivo.now_playing @download_now_playing
   end
 
-  def display_header
-    puts
-    display_msg 'Recorded    Len  Title (Size)'
-    display_msg '----------- ---- --------------------------------------------'
-  end
-
   def display_lists
-    display_header
-    display_list "Included:", :included
-    display_list 'To Download:', :to_download
-    display_list 'To Encode:', :to_encode
-    display_list "Being Watched", :being_watched
-    display_list "Already Downloaded:", :already_downloaded
-    display_list "Excluded:", :excluded
-    display_list "Not Included:", :not_included
+    puts
+    display_list "Included", :included
+    display_list 'To Download', :to_download
+    display_list 'To Encode', :to_encode
+    display_list "Still Watching", :still_watching
+    display_list "Already Downloaded", :already_downloaded
+    display_list "Excluded", :excluded
+    display_list "Not Included", :not_included
     puts
   end
 
@@ -137,6 +131,7 @@ class Nropster::DownloadWorker < Nropster::Worker
           end
           show.download
           just_downloaded_file = true
+          @shows.show_progress
         end
       end
       break unless anything_to_be_done
@@ -153,7 +148,10 @@ class Nropster::EncodeWorker < Nropster::Worker
         if show.needs_encoding?
           anything_to_be_done = true
         end
-        show.encode if show.ready_to_encode?
+        if show.ready_to_encode?
+          show.encode
+          @shows.show_progress
+        end
       end
       break unless anything_to_be_done
       sleep 1

@@ -205,5 +205,18 @@ class Shows < Array
   def to_encode
     select {|show| show.state == :downloaded}
   end
+
+  def show_progress
+    each do |show|
+      case show.state
+      when :to_download then display_msg "  To download #{show}"
+      when :downloading then display_msg "  Downloading #{show}"
+      when :downloaded then display_msg "  Downloaded #{show}"
+      when :encoding then display_msg "  Encoding #{show}"
+      when :errored then display_msg "  Errored #{show}"
+      when :done then display_msg "  Finished #{show}"
+      end
+    end
+  end
 end
 
