@@ -7,12 +7,13 @@ require 'optparse'
 require 'nropster'
 require 'msg'
 require 'lll'
+require 'yaml'
 
-VERSION_S = 'nropster 1.4: Download shows from TiVo and encode to DV'
+VERSION_S = 'nropster 1.41: Download shows from TiVo and encode to DV'
 
 def read_config_file(options)
-  inclusion_exclusion_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))
-  inclusion_exclusion = YAML::load_file(inclusion_exclusion_filename) rescue {}
+  config_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))
+  inclusion_exclusion = YAML::load_file(config_filename)
   options[:inclusion_regexp] = inclusion_exclusion[:include]
   options[:exclusion_regexp] = inclusion_exclusion[:exclude]
 end
