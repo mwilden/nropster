@@ -17,8 +17,8 @@ class Encoder
 
   private
   def quote_for_exec string
-    with_escaped_apostrophes = string.gsub /'/, "'\\\\''"
-    "'#{with_escaped_apostrophes}'"
+    with_escaped_apostrophes = string.gsub /'/, %{'\\\\''}
+    %{'#{with_escaped_apostrophes}'}
   end
 end
 
