@@ -9,7 +9,7 @@ require 'msg'
 require 'lll'
 require 'yaml'
 
-VERSION_S = 'nropster 1.41: Download shows from TiVo and encode to DV'
+VERSION_S = 'nropster 1.5.0: Download shows from TiVo and encode to DV'
 
 def read_config_file(options)
   config_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))

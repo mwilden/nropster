@@ -104,7 +104,7 @@ class TiVo::Show::Downloader
     work = output + '.work'
     File.delete output if File.exists? output
     File.delete work if File.exists? work
-    IO.popen(%Q[tivodecode -o #{quote_for_exec(work)} -m "#{@mak}" -], 'wb') do |tivodecode|
+    IO.popen(%{#{File.dirname(__FILE__)}/../bin/tivodecode -o #{quote_for_exec(work)} -m "#{@mak}" -}, 'wb') do |tivodecode|
       TiVo::Downloader.new(url, @mak).download do |chunk|
         tivodecode << chunk
         progress_bar.inc chunk.length
