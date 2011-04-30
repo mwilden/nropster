@@ -31,6 +31,9 @@ class Nropster
   rescue Timeout::Error
     display_error_msg "TiVo web server is down"
     exit 1
+  rescue Interrupt
+    puts
+    exit 1
   end
 
   private
