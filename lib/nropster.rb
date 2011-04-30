@@ -6,13 +6,13 @@ require 'show'
 
 class Nropster
   def initialize(options)
-    @confirm = options[:confirm]
+    @autostart = options[:autostart]
     @destination_directory = options[:destination_directory]
     @edited_directory = options[:edited_directory]
     @work_directory = options[:work_directory]
     @inclusion_regexp = Regexp.new(options[:inclusion_regexp], Regexp::IGNORECASE) if options[:inclusion_regexp]
     @exclusion_regexp = Regexp.new(options[:exclusion_regexp], Regexp::IGNORECASE) if options[:exclusion_regexp]
-    @download_now_playing = options[:download_now_playing]
+    @download_now_playing = !@autostart && options[:download_now_playing]
     @force_download_existing = options[:force_download_existing]
     @tivo = TiVo.new @work_directory
   end
@@ -71,7 +71,7 @@ class Nropster
   end
 
   def confirm
-    if @confirm
+    unless @autostart
       print "Press Enter to download or ^C to cancel: "
       begin
         $stdin.getc

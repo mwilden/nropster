@@ -9,7 +9,7 @@ require 'msg'
 require 'lll'
 require 'yaml'
 
-VERSION_S = 'nropster 1.5.0: Download shows from TiVo and encode to DV'
+VERSION_S = 'nropster 1.6.0: Download shows from TiVo and encode to DV'
 
 def read_config_file(options)
   config_filename = File.expand_path(File.join(File.dirname(__FILE__), 'config.yaml'))
@@ -27,9 +27,9 @@ def parse_options
 
     opts.banner = "Usage nropster [options]"
 
-    options[:confirm] = true
-    opts.on('-c', '--[no-]confirm', '(default) Require pressing Enter before work starts') do |v|
-      options[:confirm] = v
+    options[:autostart] = false
+    opts.on('-a', '--autostart', "Don't require pressing Enter before work starts (implies -n)") do |v|
+      options[:autostart] = v
     end
 
     opts.on('-i', '--include REGEXP', 'Regexp of show names to include') do |regexp|
